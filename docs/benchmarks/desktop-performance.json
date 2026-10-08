@@ -1,0 +1,75 @@
+{
+  "runs": [
+    {
+      "window_ms": 4.863,
+      "gpu_ready_ms": 38.329,
+      "first_present_ms": 78.605,
+      "process_total_ms": 818.6238229991432
+    },
+    {
+      "window_ms": 6.319,
+      "gpu_ready_ms": 41.148,
+      "first_present_ms": 80.203,
+      "process_total_ms": 821.2455249995401
+    },
+    {
+      "window_ms": 6.014,
+      "gpu_ready_ms": 37.382,
+      "first_present_ms": 75.383,
+      "process_total_ms": 818.4917159996985
+    },
+    {
+      "window_ms": 7.992,
+      "gpu_ready_ms": 39.598,
+      "first_present_ms": 77.72,
+      "process_total_ms": 820.3825319997122
+    },
+    {
+      "window_ms": 8.047,
+      "gpu_ready_ms": 41.271,
+      "first_present_ms": 81.16,
+      "process_total_ms": 820.3893540012359
+    },
+    {
+      "window_ms": 6.81,
+      "gpu_ready_ms": 41.606,
+      "first_present_ms": 80.087,
+      "process_total_ms": 819.3653939997603
+    },
+    {
+      "window_ms": 7.14,
+      "gpu_ready_ms": 44.333,
+      "first_present_ms": 85.459,
+      "process_total_ms": 820.1279879995127
+    },
+    {
+      "window_ms": 6.574,
+      "gpu_ready_ms": 40.306,
+      "first_present_ms": 81.907,
+      "process_total_ms": 817.5322110000707
+    },
+    {
+      "window_ms": 8.825,
+      "gpu_ready_ms": 41.887,
+      "first_present_ms": 80.966,
+      "process_total_ms": 817.4303420000797
+    },
+    {
+      "window_ms": 6.484,
+      "gpu_ready_ms": 47.065,
+      "first_present_ms": 84.547,
+      "process_total_ms": 817.9937759996392
+    }
+  ],
+  "median_first_present_ms": 80.58449999999999,
+  "min_first_present_ms": 75.383,
+  "max_first_present_ms": 85.459,
+  "rss_kib": 81012,
+  "peak_rss_kib": 81012,
+  "idle_cpu_percent_one_core": 0.0,
+  "gpu_driver_memory_kib": {
+    "drm-memory-vram": 14252,
+    "drm-memory-gtt": 42984,
+    "drm-memory-cpu": 0
+  }
+}

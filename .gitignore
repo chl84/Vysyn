@@ -1,0 +1,8 @@
+/target/
+/artifacts/
+*.log
+/.native/
+/vcpkg_installed/
+/.agents/
+/.aws/
+/.codex/

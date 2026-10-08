@@ -1,0 +1,8 @@
+{
+  "name": "vysyn-native",
+  "version-string": "0.1.0",
+  "builtin-baseline": "ed934a65b65acefbb7a03181891edb00c86f8119",
+  "dependencies": [
+    { "name": "libheif", "default-features": false, "features": ["aom"] }
+  ]
+}

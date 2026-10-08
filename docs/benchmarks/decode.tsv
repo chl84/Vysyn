@@ -1,0 +1,11 @@
+file	format	width	height	frames	decode_median_ms	decode_p95_ms	cache_lookup_us	image_bytes
+artifacts/bench-images/gradient.jpg	Raster(Jpeg)	1920	1080	1	17.249	20.271	0.041	8294400
+artifacts/bench-images/gradient.png	Raster(Png)	1920	1080	1	28.866	30.689	0.040	8294400
+artifacts/bench-images/gradient.webp	Raster(WebP)	1920	1080	1	10.464	11.849	0.025	8294400
+artifacts/bench-images/animated.gif	Raster(Gif)	320	240	3	0.850	1.246	0.023	921600
+artifacts/bench-images/gradient.bmp	Raster(Bmp)	1920	1080	1	8.697	10.331	0.022	8294400
+artifacts/bench-images/gradient.tiff	Raster(Tiff)	1920	1080	1	5.706	7.712	0.022	8294400
+artifacts/bench-images/gradient.ico	Raster(Ico)	256	144	1	0.294	0.374	0.023	147456
+artifacts/bench-images/gradient.svg	Svg	1920	1080	1	14.812	15.880	0.022	8294400
+artifacts/bench-images/rotated.heic	Heif	48	64	1	0.170	0.267	0.022	12288
+artifacts/bench-images/sample.avif	Raster(Avif)	64	48	1	0.708	0.846	0.023	12288

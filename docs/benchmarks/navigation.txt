@@ -1,0 +1,18 @@
+vysyn: window_ms=12.296
+vysyn: gpu_ready_ms=49.108 backend=Vulkan adapter=AMD Radeon 610M (RADV RAPHAEL_MENDOCINO)
+vysyn: loaded_ms=44.958 decode_ms=44.610 cached=false
+vysyn: present generation=1 navigation_ms=58.468 buffers_bytes=8294400 gpu_image_bytes=8294400
+vysyn: first_present_ms=107.858
+vysyn: directory_files=10
+vysyn: key=Character("+")
+vysyn: key=Character("0")
+vysyn: key=Character("0")
+vysyn: key=Named(ArrowRight)
+vysyn: loaded_ms=0.037 decode_ms=33.455 cached=true
+vysyn: present generation=2 navigation_ms=2.066 buffers_bytes=24883200 gpu_image_bytes=8294400
+vysyn: key=Named(ArrowLeft)
+vysyn: loaded_ms=0.027 decode_ms=44.610 cached=true
+vysyn: present generation=3 navigation_ms=4.402 buffers_bytes=33177600 gpu_image_bytes=8294400
+vysyn: key=Named(F11)
+vysyn: key=Named(F11)
+vysyn: key=Named(Escape)
