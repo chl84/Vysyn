@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::{DynamicImage, ImageFormat, Rgb, RgbImage};
 use std::{
     fs::{self, File},
-    io::BufWriter,
+    io::{BufWriter, Write},
     path::PathBuf,
 };
 
@@ -25,12 +25,66 @@ fn main() -> Result<()> {
         ("webp", ImageFormat::WebP),
         ("bmp", ImageFormat::Bmp),
         ("tiff", ImageFormat::Tiff),
+        ("tga", ImageFormat::Tga),
+        ("pam", ImageFormat::Pnm),
     ] {
         image.write_to(
             &mut BufWriter::new(File::create(dir.join(format!("gradient.{extension}")))?),
             format,
         )?;
     }
+    DynamicImage::ImageRgba16(image.to_rgba16()).write_to(
+        &mut BufWriter::new(File::create(dir.join("gradient.ff"))?),
+        ImageFormat::Farbfeld,
+    )?;
+    let rgb = image.as_rgb8().unwrap();
+    let gray = image.to_luma8();
+    for (extension, signature, data) in [("ppm", "P6", rgb.as_raw()), ("pgm", "P5", gray.as_raw())]
+    {
+        let mut file = BufWriter::new(File::create(dir.join(format!("gradient.{extension}")))?);
+        write!(file, "{signature}\n1920 1080\n255\n")?;
+        file.write_all(data)?;
+    }
+    let mut bitmap = BufWriter::new(File::create(dir.join("gradient.pbm"))?);
+    bitmap.write_all(b"P4\n1920 1080\n")?;
+    for row in gray.as_raw().as_chunks::<1920>().0 {
+        for chunk in row.as_chunks::<8>().0 {
+            let mut byte = 0;
+            for (bit, &value) in chunk.iter().enumerate() {
+                byte |= u8::from(value < 128) << (7 - bit);
+            }
+            bitmap.write_all(&[byte])?;
+        }
+    }
+    let hdr = DynamicImage::ImageRgb32F(image::Rgb32FImage::from_fn(1920, 1080, |x, y| {
+        Rgb(rgb
+            .get_pixel(x, y)
+            .0
+            .map(|c| vysyn::color::srgb_to_linear(c) * 8.0))
+    }));
+    hdr.write_to(
+        &mut BufWriter::new(File::create(dir.join("gradient.hdr"))?),
+        ImageFormat::Hdr,
+    )?;
+    let mut dds = vec![0; 128];
+    dds[..4].copy_from_slice(b"DDS ");
+    for (offset, value) in [
+        (4, 124_u32),
+        (8, 0x81007),
+        (12, 1080),
+        (16, 1920),
+        (20, 1920 * 1080 / 2),
+        (76, 32),
+        (80, 4),
+        (108, 0x1000),
+    ] {
+        dds[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+    dds[84..88].copy_from_slice(b"DXT1");
+    for _ in 0..1920 * 1080 / 16 {
+        dds.extend([0, 0xf8, 0, 0, 0, 0, 0, 0]);
+    }
+    fs::write(dir.join("red.dds"), dds)?;
     DynamicImage::ImageRgba8(image.thumbnail(256, 256).into_rgba8()).write_to(
         &mut BufWriter::new(File::create(dir.join("gradient.ico"))?),
         ImageFormat::Ico,

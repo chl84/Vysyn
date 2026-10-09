@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail, ensure};
 use image::{AnimationDecoder, DynamicImage, ImageDecoder, ImageFormat, ImageReader, RgbaImage};
 use std::{
     fs::File,
-    io::{Cursor, Read},
+    io::{Cursor, Read, Seek, SeekFrom},
     path::Path,
     time::{Duration, Instant},
 };
@@ -52,9 +52,19 @@ pub fn detect(bytes: &[u8]) -> Result<Format> {
                 | ImageFormat::Tiff
                 | ImageFormat::Ico
                 | ImageFormat::Avif
+                | ImageFormat::Pnm
+                | ImageFormat::Farbfeld
+                | ImageFormat::Dds
+                | ImageFormat::Hdr
         )
     {
         return Ok(Format::Raster(f));
+    }
+    if bytes.starts_with(b"#?RGBE\n") || bytes.starts_with(b"#?RGBE\r\n") {
+        return Ok(Format::Raster(ImageFormat::Hdr));
+    }
+    if bytes.len() >= 44 && bytes.ends_with(TGA_SIGNATURE) && tga_header(bytes) {
+        return Ok(Format::Raster(ImageFormat::Tga));
     }
     let header = String::from_utf8_lossy(&bytes[..bytes.len().min(4096)]);
     if header.contains("<svg")
@@ -68,6 +78,48 @@ pub fn detect(bytes: &[u8]) -> Result<Format> {
     bail!("unsupported or unrecognized image contents")
 }
 
+const TGA_SIGNATURE: &[u8] = b"TRUEVISION-XFILE.\0";
+
+/// TGA 1.0 has no identifying signature. Only use its extension after checking
+/// the fixed header; TGA 2.0's footer also permits renamed/extensionless files.
+fn tga_header(bytes: &[u8]) -> bool {
+    let Some(h) = bytes.get(..18) else {
+        return false;
+    };
+    if h[1] > 1 || h[17] & 0xc0 != 0 || h[17] & 0x0f > 8 {
+        return false;
+    }
+    let width = u16::from_le_bytes([h[12], h[13]]);
+    let height = u16::from_le_bytes([h[14], h[15]]);
+    if width == 0 || height == 0 {
+        return false;
+    }
+    let map_valid =
+        h[1] == 0 || (u16::from_le_bytes([h[5], h[6]]) > 0 && matches!(h[7], 15 | 16 | 24 | 32));
+    map_valid
+        && match h[2] {
+            1 | 9 => h[1] == 1 && matches!(h[16], 8 | 16) && h[16] <= h[7],
+            2 | 10 => matches!(h[16], 15 | 16 | 24 | 32),
+            3 | 11 => matches!(h[16], 8 | 16),
+            _ => false,
+        }
+}
+
+fn detect_with_path(bytes: &[u8], path: &Path) -> Result<Format> {
+    detect(bytes).or_else(|error| {
+        let tga_extension = path.extension().and_then(|e| e.to_str()).is_some_and(|e| {
+            ["tga", "targa", "icb", "vda", "vst", "tpic"]
+                .iter()
+                .any(|extension| e.eq_ignore_ascii_case(extension))
+        });
+        if tga_extension && tga_header(bytes) {
+            Ok(Format::Raster(ImageFormat::Tga))
+        } else {
+            Err(error)
+        }
+    })
+}
+
 pub fn detect_file(path: &Path) -> Result<Format> {
     let mut header = [0; 4096];
     let mut file = File::open(path)?;
@@ -79,7 +131,20 @@ pub fn detect_file(path: &Path) -> Result<Format> {
         }
         n += read;
     }
-    detect(&header[..n])
+    let result = detect_with_path(&header[..n], path);
+    if result.is_ok() || !tga_header(&header[..n]) || file.metadata()?.len() < 44 {
+        return result;
+    }
+    // TGA's footer is at the end, rather than in the bounded prefix. Read only
+    // 26 additional bytes, including the two offsets before the signature.
+    file.seek(SeekFrom::End(-26))?;
+    let mut footer = [0; 26];
+    file.read_exact(&mut footer)?;
+    if footer.ends_with(TGA_SIGNATURE) {
+        Ok(Format::Raster(ImageFormat::Tga))
+    } else {
+        result
+    }
 }
 
 #[derive(Debug)]
@@ -150,10 +215,11 @@ pub fn decode(
         "file changed while reading; try again"
     );
     ensure!(!cancelled(), "request superseded");
-    let format = detect(&bytes)?;
+    let format = detect_with_path(&bytes, path)?;
     let mut decoded = match format {
         Format::Raster(ImageFormat::Gif) => decode_gif(&bytes, limits, budget, target, cancelled)?,
         Format::Raster(ImageFormat::Avif) => decode_heif(&bytes, limits, budget, target)?,
+        Format::Raster(ImageFormat::Hdr) => decode_hdr(&bytes, limits, budget, target)?,
         Format::Raster(f) => decode_raster(&bytes, f, limits, budget, target)?,
         Format::Heif => decode_heif(&bytes, limits, budget, target)?,
         Format::Svg => decode_svg(&bytes, limits, budget, target)?,
@@ -209,6 +275,9 @@ fn decode_raster(
     budget: &Budget,
     target: Target,
 ) -> Result<Decoded> {
+    let dds = (format == ImageFormat::Dds)
+        .then(|| dds_layout(bytes))
+        .transpose()?;
     let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
     reader.limits(decoder_limits(limits));
     let mut decoder = reader.into_decoder()?;
@@ -232,6 +301,16 @@ fn decode_raster(
         warnings.push(format!("unsupported color space; assuming sRGB: {e}"));
     }
     let mut rgba = image.into_rgba8();
+    if let Some(layout) = dds {
+        if layout.bc1 && !layout.opaque {
+            restore_bc1_alpha(&mut rgba, &bytes[layout.offset..])?;
+        }
+        if layout.opaque {
+            for p in rgba.as_mut().as_chunks_mut::<4>().0 {
+                p[3] = 255;
+            }
+        }
+    }
     if let Some(icc) = icc
         && let Err(e) = color::convert_icc(rgba.as_mut(), &icc)
     {
@@ -240,6 +319,114 @@ fn decode_raster(
         ));
     }
     Ok(single(rgba, target, memory, warnings))
+}
+
+struct DdsLayout {
+    offset: usize,
+    bc1: bool,
+    opaque: bool,
+}
+
+fn dds_layout(bytes: &[u8]) -> Result<DdsLayout> {
+    ensure!(bytes.len() >= 128, "truncated DDS header");
+    let word = |offset| u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
+    ensure!(
+        word(24) <= 1 && word(112) & (0xfe00 | 0x20_0000) == 0,
+        "DDS cubemaps and volume textures are unsupported"
+    );
+    let mut layout = DdsLayout {
+        offset: 128,
+        bc1: &bytes[84..88] == b"DXT1",
+        opaque: false,
+    };
+    if &bytes[84..88] == b"DX10" {
+        ensure!(bytes.len() >= 148, "truncated DDS DX10 header");
+        ensure!(
+            word(132) == 3 && word(136) == 0 && word(140) == 1,
+            "DDS requires a single two-dimensional texture"
+        );
+        ensure!(
+            matches!(word(144), 0 | 1 | 3),
+            "DDS premultiplied/custom alpha is unsupported"
+        );
+        layout.offset = 148;
+        layout.bc1 = matches!(word(128), 70..=72);
+        layout.opaque = word(144) == 3;
+    }
+    Ok(layout)
+}
+
+/// image's BC1 decoder returns RGB, dropping BC1's transparent selector. Keep
+/// its RGB decoding and restore only that alpha bit from the original blocks.
+fn restore_bc1_alpha(rgba: &mut RgbaImage, bytes: &[u8]) -> Result<()> {
+    let blocks_wide = rgba.width() as usize / 4;
+    let count = blocks_wide * (rgba.height() as usize / 4);
+    let blocks = bytes.get(..count * 8).context("truncated DDS BC1 blocks")?;
+    for (index, block) in blocks.as_chunks::<8>().0.iter().enumerate() {
+        if u16::from_le_bytes([block[0], block[1]]) > u16::from_le_bytes([block[2], block[3]]) {
+            continue;
+        }
+        let selectors = u32::from_le_bytes(block[4..8].try_into()?);
+        for pixel in 0..16 {
+            if (selectors >> (pixel * 2)) & 3 == 3 {
+                let x = (index % blocks_wide) as u32 * 4 + pixel % 4;
+                let y = (index / blocks_wide) as u32 * 4 + pixel / 4;
+                rgba.get_pixel_mut(x, y)[3] = 0;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn decode_hdr(bytes: &[u8], limits: &Limits, budget: &Budget, target: Target) -> Result<Decoded> {
+    use image::codecs::hdr::HdrDecoder;
+    // image's strict parser accepts only RADIANCE/LF. Normalize the bounded
+    // ASCII header, leaving compressed pixel bytes untouched and validation strict.
+    const HEADER_LIMIT: usize = 64 * 1024;
+    let _header_memory = budget.reserve(HEADER_LIMIT as u64)?;
+    let mut header = Vec::with_capacity(HEADER_LIMIT);
+    let mut offset = 0;
+    let mut dimensions_next = false;
+    let mut end = None;
+    for (index, line) in bytes[..bytes.len().min(HEADER_LIMIT)]
+        .split_inclusive(|&b| b == b'\n')
+        .enumerate()
+    {
+        let line = line
+            .strip_suffix(b"\n")
+            .context("HDR header exceeds 64 KiB or is truncated")?;
+        offset += line.len() + 1;
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        let normalized = if index == 0 { b"#?RADIANCE" } else { line };
+        ensure!(
+            header.len() + normalized.len() < HEADER_LIMIT,
+            "HDR header exceeds 64 KiB"
+        );
+        header.extend(normalized);
+        header.push(b'\n');
+        if dimensions_next {
+            end = Some(offset);
+            break;
+        }
+        dimensions_next = index > 0 && line.is_empty();
+    }
+    let offset = end.context("HDR header exceeds 64 KiB or has no terminator")?;
+    let reader = Cursor::new(header).chain(Cursor::new(&bytes[offset..]));
+    let mut decoder = HdrDecoder::new(reader)?;
+    decoder.set_limits(decoder_limits(limits))?;
+    let (width, height) = decoder.dimensions();
+    let memory = work_memory(limits, budget, width, height)?;
+    ensure!(
+        decoder.total_bytes() <= limits.decoded_bytes,
+        "HDR float buffer exceeds decoded limit"
+    );
+    let image = DynamicImage::from_decoder(decoder)?.into_rgb32f();
+    Ok(single(
+        color::tone_map_hdr(&image),
+        target,
+        memory,
+        Vec::new(),
+    ))
 }
 
 fn decode_gif(

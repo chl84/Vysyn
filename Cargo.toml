@@ -9,7 +9,7 @@ repository = "https://github.com/chl84/Vysyn"
 [dependencies]
 anyhow = "1.0.104"
 bytemuck = { version = "1.25.2", features = ["derive"] }
-image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp", "tiff", "ico"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp", "tiff", "ico", "pnm", "tga", "ff", "dds", "hdr"] }
 libheif-rs = { version = "3.0.0", default-features = false, features = ["v1_20"] }
 moxcms = "0.9.1"
 pollster = "1.0.1"

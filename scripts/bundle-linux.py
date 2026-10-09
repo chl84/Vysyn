@@ -41,6 +41,7 @@ for name, binary_name in [("vysyn", "vysyn-bin"), ("vysyn-bench", "vysyn-bench-b
 shutil.copy2(root / "README.md", bundle / "README.md")
 shutil.copytree(root / "docs", bundle / "docs", dirs_exist_ok=True)
 shutil.copy2(root / "packaging/vysyn.desktop", bundle / "vysyn.desktop")
+shutil.copy2(root / "packaging/vysyn-mime.xml", bundle / "vysyn-mime.xml")
 licenses = bundle / "third-party-licenses"
 licenses.mkdir(exist_ok=True)
 shutil.copy2(root / "vendor/winit/LICENSE", licenses / "winit-LICENSE")

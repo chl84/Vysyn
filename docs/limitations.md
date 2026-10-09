@@ -14,9 +14,29 @@
   EXIF orientation is applied through image's decoder metadata.
 * Output is 8-bit SDR sRGB. RGB/grayscale ICC and supported NCLX/CICP spaces are
   converted; malformed/unsupported profiles fall back to sRGB with a diagnostic.
-  CMYK ICC workflows, calibrated monitor profiles, HDR tone mapping and native
+  CMYK ICC workflows, calibrated monitor profiles and native
   wide-gamut output are not implemented. Wide-gamut values clip to sRGB. The OS
   compositor is responsible for mapping the declared sRGB surface to the monitor.
+* Radiance HDR accepts RGBE with `#?RADIANCE` or `#?RGBE`, LF/CRLF headers and
+  old/new RLE pixels. The header including the resolution line is capped at 64 KiB;
+  the float buffer has the same decoded-byte limit as other images. Linear RGB
+  uses fixed-exposure, per-channel Reinhard (`c / (1 + c)`) followed by sRGB encoding.
+  This compresses highlights into SDR but can change saturation. Automatic
+  exposure, Radiance `EXPOSURE`/`COLORCORR`/custom primaries and XYZE conversion
+  are not implemented; native HDR display output remains unsupported.
+* PNM supports P1–P7, including ASCII/binary PBM/PGM/PPM and PAM with supported
+  grayscale/RGB tuples and alpha. Farbfeld's 16-bit big-endian RGBA is converted
+  to the existing 8-bit output and premultiplied in linear light.
+* TGA accepts uncompressed/RLE truecolor, grayscale and supported palettes, with
+  all four origins. Valid TGA 2.0 footers allow renamed/extensionless files;
+  signatureless TGA 1.0 needs `.tga`, `.targa`, `.icb`, `.vda`, `.vst` or `.tpic`.
+  A bounded 18-byte header check prevents extension-only acceptance. Interleaved
+  scanlines and TGA extension-area color/alpha metadata are unsupported.
+* DDS supports the base mip level of one 2D image: DXT1/3/5 and DX10 BC1/2/3,
+  including BC1 transparency restored from its selectors. Both dimensions must
+  be multiples of four, as required by image's decoder. Cubemaps, arrays, volumes,
+  uncompressed DDS, BC4–BC7 and premultiplied/custom DX10 alpha are rejected.
+  Unknown/straight alpha is preserved; explicit opaque DX10 alpha is respected.
 * SVG support is deliberately bounded: UTF-8 vector shapes, gradients and text;
   no DTDs, `use` expansion, raster image hrefs (including data URIs), filters,
   masks or patterns. External image resolvers return None, so neither files nor
@@ -76,3 +96,6 @@ Primary references:
 * [image AVIF decoder source](https://docs.rs/image/0.25.10/src/image/codecs/avif/decoder.rs.html)
 * [libheif security limits](https://docs.rs/libheif-rs/3.0.0/libheif_rs/struct.SecurityLimits.html)
 * [resvg/usvg resolver](https://docs.rs/usvg/0.48.1/usvg/struct.ImageHrefResolver.html)
+* [image TGA decoder](https://docs.rs/image/0.25.10/image/codecs/tga/struct.TgaDecoder.html)
+* [image HDR decoder](https://docs.rs/image/0.25.10/image/codecs/hdr/struct.HdrDecoder.html)
+* [DDS block compression and BC1 transparency](https://learn.microsoft.com/en-us/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression)

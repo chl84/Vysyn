@@ -75,6 +75,24 @@ pub fn linear_to_srgb(v: f32) -> u8 {
     table[(v.clamp(0.0, 1.0) * 4096.0).round() as usize]
 }
 
+/// Fixed-exposure Reinhard mapping per linear RGB channel, followed by the sRGB
+/// transfer function. Compress highlights before quantizing to the SDR surface.
+pub(crate) fn tone_map_hdr(source: &image::Rgb32FImage) -> RgbaImage {
+    RgbaImage::from_fn(source.width(), source.height(), |x, y| {
+        let rgb = source.get_pixel(x, y).0.map(|value| {
+            let mapped = if value.is_nan() || value <= 0.0 {
+                0.0
+            } else if value.is_infinite() {
+                1.0
+            } else {
+                value / (1.0 + value)
+            };
+            linear_to_srgb(mapped)
+        });
+        image::Rgba([rgb[0], rgb[1], rgb[2], 255])
+    })
+}
+
 /// Store sRGB-encoded, linear-premultiplied RGB. GPU sRGB sampling therefore
 /// filters premultiplied linear light and produces the correct result on black.
 pub fn premultiply_linear(pixels: &mut [u8]) {

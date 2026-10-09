@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="image/x-portable-anymap">
+    <comment>Portable anymap (PNM/PAM)</comment>
+    <glob pattern="*.pam"/>
+    <magic priority="50">
+      <match type="string" value="P7\n" offset="0"/>
+      <match type="string" value="P7\r\n" offset="0"/>
+    </magic>
+  </mime-type>
+  <mime-type type="image/x-tga">
+    <glob pattern="*.targa"/>
+  </mime-type>
+  <mime-type type="image/x-farbfeld">
+    <glob pattern="*.farbfeld"/>
+  </mime-type>
+</mime-info>

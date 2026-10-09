@@ -43,6 +43,22 @@ pub fn supported_extension(path: &Path) -> bool {
                 | "avif"
                 | "svg"
                 | "ico"
+                | "pnm"
+                | "pbm"
+                | "pgm"
+                | "ppm"
+                | "pam"
+                | "tga"
+                | "targa"
+                | "icb"
+                | "vda"
+                | "vst"
+                | "tpic"
+                | "ff"
+                | "farbfeld"
+                | "dds"
+                | "hdr"
+                | "rgbe"
         )
     })
 }

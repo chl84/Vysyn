@@ -11,6 +11,7 @@ vysyn /path/to/directory
 Without a path, Vysyn opens a black window accepting a dropped image or directory.
 Files open according to their contents, including extensionless files. Directory
 navigation follows filename order, wraps at either end, and resets the view.
+TGA 1.0 needs a recognized TGA extension; TGA 2.0 can also be recognized by its footer.
 The previous image stays visible while a replacement decodes in the background.
 Local file and directory drops work on native Wayland as well as X11. The
 Wayland implementation uses a small patch to stable winit; see
@@ -27,8 +28,10 @@ Wayland implementation uses a small patch to stable winit; see
 | `F11` | Fullscreen |
 | `Esc` | Close |
 
-JPEG, PNG, WebP, GIF (including animation), BMP, TIFF, HEIC/HEIF, AVIF, SVG, and
-ICO are supported. EXIF orientation and HEIF rotation are applied automatically.
+JPEG, PNG, WebP, GIF (including animation), BMP, TIFF, HEIC/HEIF, AVIF, SVG,
+ICO, PNM (PBM/PGM/PPM/PAM), TGA, Farbfeld, DDS (DXT1/3/5 and BC1/2/3), and
+Radiance HDR/RGBE are supported. HDR uses fixed-exposure Reinhard tone mapping
+to the 8-bit SDR output. EXIF orientation and HEIF rotation are applied automatically.
 RGB/grayscale ICC profiles convert to sRGB; transparency is filtered and blended
 against black in linear light. Rendering and zoom coordinates use physical
 pixels, so 100% zoom maps source pixels to display pixels without a second DPI
@@ -93,6 +96,16 @@ and `lib` directory together, or put a system-linked compiled executable on PATH
 `update-desktop-database ~/.local/share/applications`, then select Vysyn in the
 file manager's **Open with** dialog. These instructions do not change the default
 application automatically.
+
+For PAM and the `.targa`/`.farbfeld` aliases, also install the supplied MIME additions:
+
+```sh
+mkdir -p ~/.local/share/mime/packages
+cp packaging/vysyn-mime.xml ~/.local/share/mime/packages/
+update-mime-database ~/.local/share/mime
+```
+
+In an extracted bundle, the file is named `vysyn-mime.xml` at its top level.
 
 Windows: run the supplied `register-windows.ps1` from the extracted bundle. It
 registers Vysyn under the current user's **Open with** choices. Select Vysyn in

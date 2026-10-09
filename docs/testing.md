@@ -7,7 +7,7 @@ libheif 1.23.4, AMD Radeon 610M, Hyprland/Wayland and Xwayland.
 
 * `cargo fmt --all --check`: passed.
 * `cargo clippy --locked --all-targets -- -D warnings`: passed.
-* `cargo test --locked --all-targets`: 30 tests passed (17 unit, 13 integration).
+* `cargo test --locked --all-targets`: 47 tests passed (24 unit, 23 integration).
 * `cargo build --locked --release --bins --examples`: passed.
 * `cargo audit`: no RustSec vulnerability findings in the locked dependencies.
   Advisory DB retrieval succeeded; the secondary registry version-info refresh
@@ -21,6 +21,41 @@ transparency, GIF composition/delays/repeats, safe SVG resolution, directory
 ordering/wrapping/deletion positions, cache eviction/recency, allocation lifetime,
 cursor-anchored zoom/panning, HiDPI physical-pixel sizing and one-to-one texel
 alignment, GPU backend order and thin-image texture budget rounding.
+The ten additional-format tests check P1–P7 pixels, 16-bit Farbfeld transparency,
+TGA origins/RLE/palettes/footer detection, DDS BC1/2/3 color/alpha and unsupported
+containers, HDR signatures/CRLF/RLE/tone mapping, corrupt files, reservation
+release, decoded float-buffer limits and GPU downscaling.
+
+## Additional image formats
+
+On 2026-10-09, the bundled Release build passed 13 synthetic fixtures on native
+Wayland with Vulkan/RADV, and the same 13 with GLES/radeonsi:
+
+| Format group | Fixtures per backend |
+|---|---:|
+| PBM, PGM, PPM, RGBA PAM | 4 |
+| Signatureless TGA 1.0 and renamed TGA 2.0 | 2 |
+| 16-bit RGBA Farbfeld | 1 |
+| DXT1, DXT3, DXT5, DX10 BC1 with transparency | 4 |
+| RADIANCE HDR and RGBE with CRLF headers | 2 |
+
+These checks used only self-created, marked Vysyn windows on an otherwise empty
+workspace. Captured window pixels were compared with known RGB values, including
+linear-light transparency and HDR highlight compression, with a two-code-value
+tolerance. Arrow navigation, directory wrapping/previous and GPU cache reuse
+also passed. Fixtures and exact-window capture logs remain under ignored
+`artifacts/additional-formats/`. Large 1920x1080 synthetic samples for PBM, PGM,
+PPM, PAM, TGA, Farbfeld, HDR and DDS also decoded with the Release benchmark.
+The installed launcher passed the same 13 fixtures and navigation/cache checks
+with Vulkan. GIO content-type detection identifies all 13 fixtures, and the
+desktop MIME cache offers Vysyn for each resulting type. The MIME additions
+cover PAM and the `.targa`/`.farbfeld` aliases; legacy PGM/PAM MIME spellings
+are also listed in the desktop entry.
+
+The five added `image` features bring no extra dependencies: Cargo.lock and all
+ten bundled native library files are unchanged. Linux MIME additions and the
+desktop file validate locally; Windows Open-with registration includes the new
+extensions but still needs a Windows desktop check.
 
 ## Actual local graphical checks
 
@@ -61,8 +96,7 @@ for native HEIC/AVIF decoding using its own launcher and bundled libraries.
 
 The supplied GitHub Actions workflow builds/tests Linux and Windows and produces
 archives. Linux CI uses Xvfb/software drivers for Vulkan and GLES presentation.
-The workflow has not been run remotely from this workspace. No Windows compiler
-or Windows desktop was available locally: **Windows compilation and graphical
+No Windows compiler or Windows desktop was available locally: **Windows compilation and graphical
 operation are not claimed as locally verified**. A Windows CI build is a
 compilation/non-graphical test, not a desktop functional test.
 

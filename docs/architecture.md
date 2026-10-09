@@ -8,6 +8,14 @@ native security limits, with newer pinned native builds in CI. AVIF uses that
 same decoder because image's native AVIF constructor cannot enforce predecode
 allocation limits; see limitations.md.
 
+PNM, TGA, Farbfeld, DDS and Radiance HDR enable dependency-free `image` features;
+Cargo.lock and the native codec set are unchanged. Detection reads at most a 4 KiB
+prefix and, for plausible TGA headers, a 26-byte footer. Only signatureless TGA
+falls back to validated extensions. DDS keeps image's RGB decoder and restores
+BC1's missing alpha selector without duplicating color decoding. HDR uses a
+bounded, normalized header plus the original pixel stream with the strict decoder,
+then maps float linear RGB to SDR before quantizing.
+
 Stable winit 0.30.13 does not implement Wayland file drops. The vendored crate
 adds a receiving data device to its existing connection and calloop event loop,
 then emits the same `DroppedFile` event used on X11/Windows. URI reads are
