@@ -14,7 +14,12 @@ jobs:
         with:
           components: rustfmt, clippy
       - name: Native build tools and software graphics
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config libde265-dev libdav1d-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libvulkan1 mesa-vulkan-drivers xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build pkg-config libde265-dev libdav1d-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
+            libegl1 libegl-mesa0 libgl1-mesa-dri libgles2 \
+            libvulkan1 mesa-vulkan-drivers xvfb
       - name: Build pinned native decoder
         run: bash scripts/build-native-linux.sh
       - name: Configure native library
@@ -37,6 +42,7 @@ jobs:
       - name: Software GLES presentation smoke test
         env:
           VYSYN_BACKEND: gles
+          LIBGL_ALWAYS_SOFTWARE: "1"
         run: xvfb-run -a target/release/vysyn --trace --smoke-ms 5000 tests/fixtures/native-source.png
       - run: python3 scripts/bundle-linux.py
       - name: Test bundled codec loading

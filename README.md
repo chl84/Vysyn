@@ -54,7 +54,8 @@ Build the pinned upstream libheif with built-in decoders instead:
 
 ```sh
 sudo apt-get install build-essential pkg-config cmake ninja-build \
-  libde265-dev libdav1d-dev libxkbcommon-dev libwayland-dev
+  libde265-dev libdav1d-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
+  libegl1 libegl-mesa0 libgl1-mesa-dri libgles2 libvulkan1 mesa-vulkan-drivers
 bash scripts/build-native-linux.sh
 export PKG_CONFIG_PATH="$PWD/.native/install/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 export LD_LIBRARY_PATH="$PWD/.native/install/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
