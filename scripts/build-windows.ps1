@@ -40,6 +40,8 @@ Copy-Item README.md $bundle
 Copy-Item -Recurse docs $bundle -Force
 $licenses = Join-Path $bundle 'third-party-licenses'
 New-Item -ItemType Directory -Force $licenses | Out-Null
+Copy-Item vendor/winit/LICENSE (Join-Path $licenses 'winit-LICENSE')
+Copy-Item vendor/winit/VYSYN_PATCH.md (Join-Path $licenses 'winit-VYSYN_PATCH.md')
 Get-ChildItem (Join-Path $vcpkgRoot 'installed/x64-windows/share') -Directory | ForEach-Object {
     $copyright = Join-Path $_.FullName 'copyright'
     if (Test-Path $copyright) { Copy-Item $copyright (Join-Path $licenses ($_.Name + '.txt')) }

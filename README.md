@@ -12,6 +12,9 @@ Without a path, Vysyn opens a black window accepting a dropped image or director
 Files open according to their contents, including extensionless files. Directory
 navigation follows filename order, wraps at either end, and resets the view.
 The previous image stays visible while a replacement decodes in the background.
+Local file and directory drops work on native Wayland as well as X11. The
+Wayland implementation uses a small patch to stable winit; see
+[drag-and-drop validation](docs/testing.md#native-wayland-file-drops).
 
 | Input | Action |
 |---|---|

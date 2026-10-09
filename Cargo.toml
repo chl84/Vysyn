@@ -18,6 +18,10 @@ roxmltree = "0.21.1"
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "dx12", "gles", "wgsl"] }
 winit = { version = "0.30.13", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen"] }
 
+# Stable winit does not receive Wayland file drops; see vendor/winit/VYSYN_PATCH.md.
+[patch.crates-io]
+winit = { path = "vendor/winit" }
+
 [dev-dependencies]
 tempfile = "3.27.0"
 

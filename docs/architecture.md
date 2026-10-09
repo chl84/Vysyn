@@ -8,6 +8,13 @@ native security limits, with newer pinned native builds in CI. AVIF uses that
 same decoder because image's native AVIF constructor cannot enforce predecode
 allocation limits; see limitations.md.
 
+Stable winit 0.30.13 does not implement Wayland file drops. The vendored crate
+adds a receiving data device to its existing connection and calloop event loop,
+then emits the same `DroppedFile` event used on X11/Windows. URI reads are
+nonblocking, bounded and timed out; image decoding still goes through `loader`.
+The patch adds no unsafe code and leaves the other window-system backends alone.
+See [patch provenance and maintenance](https://github.com/chl84/Vysyn/blob/main/vendor/winit/VYSYN_PATCH.md).
+
 * `app`: winit lifecycle, physical-pixel input, on-demand redraw and GIF clock.
 * `render`: one GPU backend at a time, sRGB textures and a linear blending shader.
 * `decode`: bounded content detection, image/resvg/libheif decoding, orientation,

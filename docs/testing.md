@@ -7,7 +7,7 @@ libheif 1.23.4, AMD Radeon 610M, Hyprland/Wayland and Xwayland.
 
 * `cargo fmt --all --check`: passed.
 * `cargo clippy --locked --all-targets -- -D warnings`: passed.
-* `cargo test --locked --all-targets`: 25 tests passed (17 unit, 8 integration).
+* `cargo test --locked --all-targets`: 30 tests passed (17 unit, 13 integration).
 * `cargo build --locked --release --bins --examples`: passed.
 * `cargo audit`: no RustSec vulnerability findings in the locked dependencies.
   Advisory DB retrieval succeeded; the secondary registry version-info refresh
@@ -74,3 +74,41 @@ addition to the tested Xwayland session. Inspect animation disposal/timing again
 an independent reference player and color reproduction on calibrated displays.
 Broader real camera/ICC/large-image corpora and additional driver models remain
 release validation work; the synthetic tests do not cover every codec variation.
+
+## Native Wayland file drops
+
+On 2026-10-09, the installed release reproduced the failure: dragging a local
+image from the production Browsey application into an empty Vysyn window left
+it black. Stable winit 0.30.13 had no receiving Wayland data device, so its
+`DroppedFile` handler was never reached.
+
+After the backend patch, actual mouse drags from production Browsey and Nautilus
+on Hyprland 0.56.2 passed all eight cases (four per file manager):
+
+* A PNG into an empty viewer.
+* A replacement PNG named `blå #? bilde.png`.
+* Another replacement image in the same window.
+* A directory containing an image.
+
+Both source and viewer windows used native Wayland, with a release build and
+Vulkan/RADV on the AMD Radeon 610M. Every case checked the exact dropped path,
+decoding/presentation traces, the expected color in captured viewer pixels, and
+the continued existence of the source file/directory. All eight cases also passed with the installed bundle. A further real drop
+from native Nautilus into an installed X11/Xwayland viewer passed, including
+its captured image pixels and retained source. These were real native
+gestures, without injecting `DroppedFile` or opening the path on the command line.
+Disposable fixtures, logs and screenshots remain under ignored
+`artifacts/drag-drop/`.
+
+Hyprland's action event precedes `enter` and reports MOVE when the source offers
+COPY|MOVE. Its data-offer implementation ignores the receiver's `set_actions`
+request. The patch therefore checks that COPY is offered and requests COPY,
+without requiring a subsequent COPY action event. It performs no filesystem
+move/delete operation. Browsey and Nautilus retained every original in these
+tests. Do not infer the behavior of every compositor or arbitrary drag source
+from these checks.
+
+The five URI-list regression tests cover local hosts, comments/CRLF, escaped
+spaces/Unicode/delimiters, non-UTF-8 Unix names, malformed/NUL/remote paths,
+mixed valid/invalid entries, payload size and file-count limits. Windows drag
+handling is unchanged and still requires the manual desktop checks above.

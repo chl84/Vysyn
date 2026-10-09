@@ -370,7 +370,10 @@ impl ApplicationHandler<Event> for App {
                     .zoom(1.2_f64.powf(steps.clamp(-20.0, 20.0)), self.cursor);
                 self.redraw();
             }
-            WindowEvent::DroppedFile(path) => self.open(path),
+            WindowEvent::DroppedFile(path) => {
+                self.trace(&format!("dropped_file={}", path.display()));
+                self.open(path);
+            }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
                 self.trace(&format!("key={:?}", event.logical_key));
                 match event.logical_key {

@@ -50,6 +50,14 @@
 * Errors remain off the image surface: stderr on Linux, `%TEMP%\vysyn.log` on
   Windows. A failed navigation retains the previous image. A failed initial
   image leaves the black drop target open.
+* Wayland drops accept local `text/uri-list` file URLs, including directories,
+  escaped names and Unix filename bytes. Remote URLs and portal-only offers
+  are unsupported. A transfer is limited to 1 MiB, 1,024 paths and five seconds;
+  only one transfer is active at a time. COPY is requested; MOVE-only offers
+  are rejected. Vysyn never moves or deletes source files. Compositor/source
+  action handling remains outside the viewer: Hyprland 0.56.2 reports MOVE for
+  ordinary COPY|MOVE offers despite the receiver's COPY request. Actual Browsey
+  and Nautilus tests verified retained source files; see testing.md.
 * GPU device loss or out-of-memory is a controlled error/exit. Backend fallback
   handles initialization failure; it does not live-migrate a lost device.
 * Windows graphical behavior, mixed-DPI monitor moves and file-manager integration

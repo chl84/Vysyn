@@ -43,6 +43,8 @@ shutil.copytree(root / "docs", bundle / "docs", dirs_exist_ok=True)
 shutil.copy2(root / "packaging/vysyn.desktop", bundle / "vysyn.desktop")
 licenses = bundle / "third-party-licenses"
 licenses.mkdir(exist_ok=True)
+shutil.copy2(root / "vendor/winit/LICENSE", licenses / "winit-LICENSE")
+shutil.copy2(root / "vendor/winit/VYSYN_PATCH.md", licenses / "winit-VYSYN_PATCH.md")
 for package in ["libheif", "libde265", "dav1d", "aom", "x265", "x264", "openh264"]:
     for folder in [Path("/usr/share/licenses") / package, Path("/usr/share/doc") / package]:
         if folder.is_dir():
