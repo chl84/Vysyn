@@ -13,10 +13,12 @@
     "vysyn_before_commit": "9b622c7be9c67924d2ccda2ec54e0e42ec9fbe32",
     "before_binary_sha256": "d7e62cfbc274fecd1b4120b67acc4bd9c54d3f3fb53d0181b50031979d13d35d",
     "after_binary_sha256": "cfed706687678c64ab49f85baf06e615e22b1d66f34bd25773e8f3da7058ddc1",
-    "after_source_diff_sha256": "400135eaeffd919f7e1dd432447e912ec1c573393b9a6d1339037188fa07267f",
     "ram_budget_mib": 512,
     "gpu_image_budget_mib": 128,
-    "workers": 2
+    "workers": 2,
+    "after_unstaged_diff_snapshot_sha256": "400135eaeffd919f7e1dd432447e912ec1c573393b9a6d1339037188fa07267f",
+    "after_source_commit": "37ccda1a277114652a2a0b68dad6016e77130100",
+    "after_source_tree_oid": "30546e9c6d92e550ee6ecc871c5af8f7061761fa"
   },
   "method": {
     "clock": "CLOCK_MONOTONIC",
@@ -35,7 +37,8 @@
     "last_request": "One additional second of observation",
     "unmatched": "No matching target observed before next key; no latency assigned",
     "resolution": "Approximately 16.7 ms display frame; compositor pixels/timestamp, no photodiode/physical scanout measurement",
-    "input_files_verified_unchanged": true
+    "input_files_verified_unchanged": true,
+    "source_fingerprint": "Git commit and src tree object identify the tested source; the earlier unstaged diff snapshot hash is format-sensitive."
   },
   "summary": [
     {
