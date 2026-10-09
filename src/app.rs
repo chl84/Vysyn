@@ -155,7 +155,8 @@ impl App {
         let elapsed = self.requested.elapsed().as_secs_f64() * 1000.0;
         let ram = self.loader.as_ref().map_or(0, Loader::memory_used);
         let gpu = self.renderer.as_ref().map_or(0, |r| r.gpu_bytes);
-        self.trace(&format!("present generation={} navigation_ms={elapsed:.3} buffers_bytes={ram} gpu_image_bytes={gpu}", self.generation));
+        let current_gpu = self.renderer.as_ref().map_or(0, Renderer::current_bytes);
+        self.trace(&format!("present generation={} navigation_ms={elapsed:.3} buffers_bytes={ram} gpu_image_bytes={current_gpu} gpu_cache_bytes={gpu}", self.generation));
         if !self.first_visible {
             self.first_visible = true;
             self.trace(&format!(
@@ -245,12 +246,16 @@ impl ApplicationHandler<Event> for App {
                         for warning in &image.warnings {
                             report(warning);
                         }
-                        if let Some(renderer) = &mut self.renderer
-                            && let Err(e) = renderer.upload(&image.frames[0].pixels)
-                        {
-                            self.fail(event_loop, e);
-                            return;
-                        }
+                        let gpu_cached = match &mut self.renderer {
+                            Some(renderer) => match renderer.show_image(&image) {
+                                Ok(cached) => cached,
+                                Err(e) => {
+                                    self.fail(event_loop, e);
+                                    return;
+                                }
+                            },
+                            None => false,
+                        };
                         self.view.set_image(image.original);
                         self.current = Some(path.clone());
                         let directory = path.parent().map(std::path::Path::to_path_buf);
@@ -264,7 +269,7 @@ impl ApplicationHandler<Event> for App {
                         self.animation =
                             Animation::start(&self.delays, image.loops, Instant::now());
                         self.trace(&format!(
-                            "loaded_ms={elapsed_ms:.3} decode_ms={:.3} cached={cached}",
+                            "loaded_ms={elapsed_ms:.3} decode_ms={:.3} cached={cached} gpu_cached={gpu_cached}",
                             image.elapsed.as_secs_f64() * 1000.0
                         ));
                         self.image = Some(image);

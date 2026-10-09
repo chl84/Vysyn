@@ -1,4 +1,4 @@
-use anyhow::{Result, bail, ensure};
+use anyhow::{Result, ensure};
 use std::sync::{Arc, Mutex};
 
 const MIB: u64 = 1024 * 1024;
@@ -108,6 +108,25 @@ impl Limits {
 #[derive(Clone, Debug)]
 pub struct Budget(Arc<Mutex<(u64, u64)>>);
 
+#[derive(Debug)]
+pub struct MemoryPressure {
+    pub requested: u64,
+    pub limit: u64,
+    pub used: u64,
+}
+
+impl std::fmt::Display for MemoryPressure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "image memory budget exhausted ({} MiB in use)",
+            self.used / MIB
+        )
+    }
+}
+
+impl std::error::Error for MemoryPressure {}
+
 impl Budget {
     pub fn new(limit: u64) -> Self {
         Self(Arc::new(Mutex::new((0, limit))))
@@ -116,10 +135,12 @@ impl Budget {
     pub fn reserve(&self, bytes: u64) -> Result<Reservation> {
         let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
         if bytes > state.1.saturating_sub(state.0) {
-            bail!(
-                "image memory budget exhausted ({} MiB in use)",
-                state.0 / MIB
-            );
+            return Err(MemoryPressure {
+                requested: bytes,
+                limit: state.1,
+                used: state.0,
+            }
+            .into());
         }
         state.0 += bytes;
         Ok(Reservation {

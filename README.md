@@ -102,7 +102,7 @@ values under each extension's `OpenWithProgids`.
 ## Resource limits
 
 Settings are integers read from environment variables at startup. Limits must be
-positive; `VYSYN_CACHE_MIB=0` disables caching and preloading.
+positive; `VYSYN_CACHE_MIB=0` disables decoded CPU caching and preloading.
 
 | Variable | Default | Meaning |
 |---|---:|---|
@@ -110,7 +110,7 @@ positive; `VYSYN_CACHE_MIB=0` disables caching and preloading.
 | `VYSYN_DECODED_MIB` | 128 | Maximum decoded image / total GIF frames |
 | `VYSYN_RAM_MIB` | 512 | Shared image and decoding-work budget |
 | `VYSYN_CACHE_MIB` | 192 | Decoded LRU cache budget |
-| `VYSYN_GPU_MIB` | 128 | Current GPU image texture budget |
+| `VYSYN_GPU_MIB` | 128 | Total GPU image texture/cache budget |
 | `VYSYN_FILE_MIB` | 64 | Maximum input file size |
 | `VYSYN_WORKERS` | 2 | Decoding workers, allowed range 1–4 |
 
@@ -122,6 +122,12 @@ downscaled to the adapter's texture limits and the GPU budget. Unsafe source
 decodes are rejected. GIFs also have a 512-frame limit. SVG sources are capped at
 1 MiB, 10,000 XML nodes and 16 KiB of shaped text. Directory lists are capped at 100,000 entries and
 16 MiB of path storage.
+
+Concurrent decoding adapts to the available RAM reservations: background jobs
+wait for memory instead of clearing the decoded cache. Selecting an image already
+being decoded adopts that job for the latest request. Static GPU textures use a
+byte-bounded LRU; animation frames reuse a separate mutable texture counted within
+the same GPU image budget. GPU identity keys do not retain CPU pixel buffers.
 
 `VYSYN_BACKEND=vulkan`, `gles`, or (Windows) `dx12` forces a backend for diagnosis.
 Without an override, Linux tries Vulkan then GLES; Windows tries DX12, Vulkan,

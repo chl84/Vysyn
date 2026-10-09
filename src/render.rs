@@ -1,7 +1,12 @@
-use crate::{decode::Target, limits::Limits, view::View};
+use crate::{
+    cache::Cache,
+    decode::{Decoded, Target},
+    limits::Limits,
+    view::View,
+};
 use anyhow::{Context, Result, bail, ensure};
 use image::RgbaImage;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 use wgpu::util::DeviceExt;
 use winit::{event_loop::OwnedDisplayHandle, window::Window};
 
@@ -32,6 +37,29 @@ pub enum Draw {
     Occluded,
 }
 
+#[derive(Clone)]
+struct ImageKey(Weak<Decoded>);
+
+impl PartialEq for ImageKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
+    }
+}
+impl Eq for ImageKey {}
+
+struct GpuImage {
+    texture: wgpu::Texture,
+    bind: wgpu::BindGroup,
+    dimensions: [u32; 2],
+    bytes: u64,
+}
+
+impl Drop for GpuImage {
+    fn drop(&mut self) {
+        self.texture.destroy();
+    }
+}
+
 pub struct Renderer {
     instance: wgpu::Instance,
     surface: wgpu::Surface<'static>,
@@ -41,9 +69,9 @@ pub struct Renderer {
     pipeline: wgpu::RenderPipeline,
     uniform: wgpu::Buffer,
     sampler: wgpu::Sampler,
-    texture: Option<wgpu::Texture>,
-    bind: Option<wgpu::BindGroup>,
-    dimensions: [u32; 2],
+    current: Option<Arc<GpuImage>>,
+    images: Cache<ImageKey, GpuImage>,
+    mutable: bool,
     pub target: Target,
     pub gpu_bytes: u64,
     pub adapter_name: String,
@@ -201,9 +229,9 @@ impl Renderer {
             pipeline,
             uniform,
             sampler,
-            texture: None,
-            bind: None,
-            dimensions: [0, 0],
+            current: None,
+            images: Cache::new(limits.gpu_bytes),
+            mutable: false,
             target,
             gpu_bytes: 0,
             adapter_name: info.name,
@@ -228,8 +256,58 @@ impl Renderer {
         Ok(())
     }
 
+    /// Select an immutable static image without another upload on cache hits.
+    /// Weak identity keys cannot keep CPU buffers alive or alias a new decode.
+    pub fn show_image(&mut self, image: &Arc<Decoded>) -> Result<bool> {
+        self.check_failure()?;
+        if image.frames.len() != 1 {
+            self.upload(&image.frames[0].pixels)?;
+            return Ok(false);
+        }
+        let key = ImageKey(Arc::downgrade(image));
+        if let Some(entry) = self.images.get(&key) {
+            self.current = Some(entry);
+            self.mutable = false;
+            self.gpu_bytes = self.images.used();
+            return Ok(true);
+        }
+        let pixels = &image.frames[0].pixels;
+        let bytes = self.validate_image(pixels)?;
+        self.current = None;
+        let entry = self.texture_for(pixels, bytes)?;
+        self.write_pixels(&entry.texture, pixels);
+        self.images.insert(key, entry.clone(), bytes);
+        self.current = Some(entry);
+        self.mutable = false;
+        self.gpu_bytes = self.images.used();
+        Ok(false)
+    }
+
+    /// Animation textures are mutable and are never indexed as static images.
     pub fn upload(&mut self, image: &RgbaImage) -> Result<()> {
         self.check_failure()?;
+        let bytes = self.validate_image(image)?;
+        if !self.mutable
+            || self
+                .current
+                .as_ref()
+                .is_none_or(|entry| entry.dimensions != [image.width(), image.height()])
+        {
+            self.current = None;
+            self.current = Some(self.texture_for(image, bytes)?);
+        }
+        self.mutable = true;
+        let entry = self.current.as_ref().context("texture allocation failed")?;
+        self.write_pixels(&entry.texture, image);
+        self.gpu_bytes = self.images.used() + bytes;
+        Ok(())
+    }
+
+    pub fn current_bytes(&self) -> u64 {
+        self.current.as_ref().map_or(0, |entry| entry.bytes)
+    }
+
+    fn validate_image(&self, image: &RgbaImage) -> Result<u64> {
         let [w, h] = [image.width(), image.height()];
         ensure!(
             w > 0 && h > 0 && w <= self.target.max_dimension && h <= self.target.max_dimension,
@@ -240,53 +318,73 @@ impl Renderer {
             bytes <= self.target.gpu_bytes,
             "image exceeds GPU memory budget"
         );
-        if self.dimensions != [w, h] {
-            self.bind = None;
-            if let Some(old) = self.texture.take() {
-                old.destroy();
+        Ok(bytes)
+    }
+
+    fn texture_for(&mut self, image: &RgbaImage, bytes: u64) -> Result<Arc<GpuImage>> {
+        let [w, h] = [image.width(), image.height()];
+        let mut reusable = None;
+        // Drop the current reference before calling this function. Evict before
+        // allocating so the total image payload stays within the existing cap.
+        while self.images.used() > self.target.gpu_bytes - bytes || self.images.len() >= 32 {
+            let entry = self
+                .images
+                .pop_lru()
+                .context("GPU cache accounting failed")?;
+            if reusable.is_none() && entry.dimensions == [w, h] {
+                reusable = Some(entry);
             }
-            let allocation_scope = self.device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
-            let texture = self.device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("current image"),
-                size: wgpu::Extent3d {
-                    width: w,
-                    height: h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[],
-            });
-            if let Some(e) = pollster::block_on(allocation_scope.pop()) {
-                bail!("cannot allocate GPU texture: {e}");
-            }
-            let view = texture.create_view(&Default::default());
-            self.bind = Some(self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("image"),
-                layout: &self.pipeline.get_bind_group_layout(0),
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: self.uniform.as_entire_binding(),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::TextureView(&view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: wgpu::BindingResource::Sampler(&self.sampler),
-                    },
-                ],
-            }));
-            self.texture = Some(texture);
-            self.dimensions = [w, h];
-            self.gpu_bytes = bytes;
         }
-        let texture = self.texture.as_ref().context("texture allocation failed")?;
+        if let Some(entry) = reusable {
+            return Ok(entry);
+        }
+        let allocation_scope = self.device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("current image"),
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        if let Some(e) = pollster::block_on(allocation_scope.pop()) {
+            bail!("cannot allocate GPU texture: {e}");
+        }
+        let view = texture.create_view(&Default::default());
+        let bind = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("image"),
+            layout: &self.pipeline.get_bind_group_layout(0),
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: self.uniform.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                },
+            ],
+        });
+        Ok(Arc::new(GpuImage {
+            texture,
+            bind,
+            dimensions: [w, h],
+            bytes,
+        }))
+    }
+
+    fn write_pixels(&self, texture: &wgpu::Texture, image: &RgbaImage) {
+        let [w, h] = [image.width(), image.height()];
         self.queue.write_texture(
             wgpu::TexelCopyTextureInfo {
                 texture,
@@ -306,7 +404,6 @@ impl Renderer {
                 depth_or_array_layers: 1,
             },
         );
-        Ok(())
     }
 
     fn check_failure(&self) -> Result<()> {
@@ -371,9 +468,9 @@ impl Renderer {
                 })],
                 ..Default::default()
             });
-            if let Some(bind) = &self.bind {
+            if let Some(image) = &self.current {
                 pass.set_pipeline(&self.pipeline);
-                pass.set_bind_group(0, bind, &[]);
+                pass.set_bind_group(0, &image.bind, &[]);
                 pass.draw(0..6, 0..1);
             }
         }
@@ -409,5 +506,31 @@ mod tests {
             [wgpu::Backends::GL]
         );
         assert!(backend_order(false, Some("dx12")).is_err());
+    }
+
+    #[test]
+    fn gpu_identity_keys_do_not_pin_cpu_memory_or_alias_new_decodes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("image.png");
+        image::RgbaImage::from_pixel(8, 8, image::Rgba([20, 40, 60, 255]))
+            .save(&path)
+            .unwrap();
+        let limits = Limits::default();
+        let budget = crate::limits::Budget::new(limits.ram_bytes);
+        let target = Target {
+            max_dimension: 8192,
+            gpu_bytes: limits.gpu_bytes,
+        };
+        let old =
+            Arc::new(crate::decode::decode(&path, &limits, &budget, target, &|| false).unwrap());
+        let key = ImageKey(Arc::downgrade(&old));
+        assert!(key == ImageKey(Arc::downgrade(&old)));
+        let new =
+            Arc::new(crate::decode::decode(&path, &limits, &budget, target, &|| false).unwrap());
+        assert!(key != ImageKey(Arc::downgrade(&new)));
+        assert_eq!(budget.used(), 2 * 8 * 8 * 4);
+        drop(old);
+        assert!(key.0.upgrade().is_none());
+        assert_eq!(budget.used(), 8 * 8 * 4);
     }
 }

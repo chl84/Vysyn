@@ -41,7 +41,8 @@
   requiring a strict process-wide ceiling, use an OS sandbox/resource limit.
   In-process native libraries cannot be made memory-safe by safe Rust wrappers.
 * A new foreground request replaces queued preloads and discards obsolete
-  results. An already-running native decode cannot be forcibly canceled; worker
+  results; an active decode of the selected path is reused for the newest request.
+  An already-running native decode cannot be forcibly canceled; worker
   count and input limits bound concurrent work. Closing does not wait for it.
 * Cached files are checked by size and modification time, then checked again
   after decoding. A deliberate same-size rewrite preserving timestamps can evade

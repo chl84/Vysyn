@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, hash::Hash, sync::Arc};
+use std::{collections::VecDeque, sync::Arc};
 
 /// Small byte-bounded LRU. Three neighboring images usually occupy this cache.
 pub struct Cache<K, V> {
@@ -7,7 +7,7 @@ pub struct Cache<K, V> {
     limit: u64,
 }
 
-impl<K: Eq + Hash, V> Cache<K, V> {
+impl<K: Eq, V> Cache<K, V> {
     pub fn new(limit: u64) -> Self {
         Self {
             entries: VecDeque::new(),
@@ -38,12 +38,32 @@ impl<K: Eq + Hash, V> Cache<K, V> {
         self.entries.push_back((key, value, bytes));
     }
     pub fn evict_one(&mut self) -> bool {
-        if let Some((_, _, bytes)) = self.entries.pop_front() {
-            self.used -= bytes;
-            true
-        } else {
-            false
-        }
+        self.pop_lru().is_some()
+    }
+    /// Transfer the oldest entry out of the cache, allowing resource reuse.
+    pub fn pop_lru(&mut self) -> Option<Arc<V>> {
+        let (_, value, bytes) = self.entries.pop_front()?;
+        self.used -= bytes;
+        Some(value)
+    }
+    /// Release the oldest value which is not held by a foreground consumer.
+    pub fn evict_unshared(&mut self) -> bool {
+        let Some(index) = self
+            .entries
+            .iter()
+            .position(|(_, value, _)| Arc::strong_count(value) == 1)
+        else {
+            return false;
+        };
+        let (_, _, bytes) = self.entries.remove(index).expect("existing cache entry");
+        self.used -= bytes;
+        true
+    }
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
     pub fn clear(&mut self) {
         self.entries.clear();
@@ -71,5 +91,21 @@ mod tests {
         assert!(c.get(&4).is_none());
         c.clear();
         assert_eq!(c.used(), 0);
+    }
+
+    #[test]
+    fn memory_pressure_preserves_pinned_values_and_transfers_resources() {
+        let mut cache = Cache::new(12);
+        let current = Arc::new(1);
+        let reusable = Arc::new(2);
+        cache.insert(1, current.clone(), 4);
+        cache.insert(2, reusable.clone(), 4);
+        assert!(!cache.evict_unshared());
+        let entry = cache.pop_lru().unwrap();
+        assert!(Arc::ptr_eq(&entry, &current));
+        assert_eq!(cache.used(), 4);
+        drop(reusable);
+        assert!(cache.evict_unshared());
+        assert_eq!(cache.used(), 0);
     }
 }

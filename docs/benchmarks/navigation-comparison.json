@@ -1,0 +1,182 @@
+{
+  "date": "2026-10-09",
+  "environment": {
+    "cpu": "AMD Ryzen 5 7520U",
+    "gpu": "AMD Radeon 610M (RADV RAPHAEL_MENDOCINO)",
+    "kernel": "Linux 7.2.5-3-omarchy",
+    "desktop": "Omarchy / Hyprland / native Wayland",
+    "viewport": [
+      1920,
+      1080
+    ],
+    "refresh_hz": 59.997,
+    "vysyn_commit": "9b622c7be9c67924d2ccda2ec54e0e42ec9fbe32",
+    "vysyn_sha256": "d7e62cfbc274fecd1b4120b67acc4bd9c54d3f3fb53d0181b50031979d13d35d",
+    "imv_version": "imv 5.0.1-2",
+    "imv_sha256": "6d193cfaa84b63efc56dae93efb159cc91cf1242494724e096d1ee2321da200b"
+  },
+  "method": {
+    "input": "Native virtual-keyboard Right/Left, timestamp immediately before press",
+    "output": "First captured toplevel frame matching the requested image, compositor presentation_time",
+    "clock": "clock_gettime(CLOCK_MONOTONIC)",
+    "pixel_samples_per_frame": 768,
+    "reference_match": "Mean absolute RGB error < 3; observed matching error was 0",
+    "corpus": "Four private 4000x3000 JPEGs, two requiring EXIF rotation; no photo data exported",
+    "cache": "Warm filesystem cache, fresh application process for each scenario and repeat",
+    "setup": "Both owned windows fullscreen 1920x1080; 1.6 s settling time before capture",
+    "repeats": 2,
+    "requests_per_scenario_per_repeat": 16,
+    "order": "imv then Vysyn for repeat 0, reversed for repeat 1; same reversal for diagnostic pair",
+    "diagnostics": "Only child process environment: VYSYN_RAM_MIB=1024 or VYSYN_WORKERS=1",
+    "trace": "Vysyn --trace enabled for correlating cache hits and presentation submission",
+    "limits": "Compositor pixel/presentation measurement, no photodiode or physical scanout measurement; approximately 16.7 ms frame resolution. Apps retain their own default EXIF/color behavior.",
+    "unmatched": "Requested image not observed before next key; no latency assigned. Last request gets one extra second.",
+    "input_files_verified_unchanged": true
+  },
+  "summary": [
+    {
+      "variant": "imv",
+      "scenario": "slow",
+      "interval_ms": 1000.0,
+      "requests": 32,
+      "shown_before_next_key": 32,
+      "not_shown_before_next_key": 0,
+      "median_ms_shown_only": 131.135956,
+      "p95_ms_shown_only": 148.0526581,
+      "min_ms_shown_only": 103.23068,
+      "max_ms_shown_only": 161.073551
+    },
+    {
+      "variant": "imv",
+      "scenario": "fast",
+      "interval_ms": 250.0,
+      "requests": 32,
+      "shown_before_next_key": 32,
+      "not_shown_before_next_key": 0,
+      "median_ms_shown_only": 120.5207905,
+      "p95_ms_shown_only": 137.35154820000002,
+      "min_ms_shown_only": 69.732068,
+      "max_ms_shown_only": 139.589757
+    },
+    {
+      "variant": "imv",
+      "scenario": "alternating",
+      "interval_ms": 350.0,
+      "requests": 32,
+      "shown_before_next_key": 32,
+      "not_shown_before_next_key": 0,
+      "median_ms_shown_only": 121.994429,
+      "p95_ms_shown_only": 133.93295245,
+      "min_ms_shown_only": 117.725107,
+      "max_ms_shown_only": 138.860424
+    },
+    {
+      "variant": "vysyn",
+      "scenario": "slow",
+      "interval_ms": 1000.0,
+      "requests": 32,
+      "shown_before_next_key": 32,
+      "not_shown_before_next_key": 0,
+      "median_ms_shown_only": 37.8543405,
+      "p95_ms_shown_only": 304.5135838,
+      "min_ms_shown_only": 25.862134,
+      "max_ms_shown_only": 308.40824
+    },
+    {
+      "variant": "vysyn",
+      "scenario": "fast",
+      "interval_ms": 250.0,
+      "requests": 32,
+      "shown_before_next_key": 23,
+      "not_shown_before_next_key": 9,
+      "median_ms_shown_only": 35.456797,
+      "p95_ms_shown_only": 201.8279487,
+      "min_ms_shown_only": 19.397804,
+      "max_ms_shown_only": 203.27837
+    },
+    {
+      "variant": "vysyn",
+      "scenario": "alternating",
+      "interval_ms": 350.0,
+      "requests": 32,
+      "shown_before_next_key": 27,
+      "not_shown_before_next_key": 5,
+      "median_ms_shown_only": 210.984456,
+      "p95_ms_shown_only": 304.44095849999997,
+      "min_ms_shown_only": 187.420949,
+      "max_ms_shown_only": 352.499506
+    },
+    {
+      "variant": "vysyn-ram1024",
+      "scenario": "slow",
+      "interval_ms": 1000.0,
+      "requests": 32,
+      "shown_before_next_key": 32,
+      "not_shown_before_next_key": 0,
+      "median_ms_shown_only": 29.6031475,
+      "p95_ms_shown_only": 35.983063699999995,
+      "min_ms_shown_only": 22.827728,
+      "max_ms_shown_only": 39.781513
+    },
+    {
+      "variant": "vysyn-ram1024",
+      "scenario": "fast",
+      "interval_ms": 250.0,
+      "requests": 32,
+      "shown_before_next_key": 30,
+      "not_shown_before_next_key": 2,
+      "median_ms_shown_only": 29.6293555,
+      "p95_ms_shown_only": 30.899317500000002,
+      "min_ms_shown_only": 20.448376,
+      "max_ms_shown_only": 31.984728
+    },
+    {
+      "variant": "vysyn-ram1024",
+      "scenario": "alternating",
+      "interval_ms": 350.0,
+      "requests": 32,
+      "shown_before_next_key": 32,
+      "not_shown_before_next_key": 0,
+      "median_ms_shown_only": 24.2895675,
+      "p95_ms_shown_only": 29.52895095,
+      "min_ms_shown_only": 22.3821,
+      "max_ms_shown_only": 38.516834
+    },
+    {
+      "variant": "vysyn-worker1",
+      "scenario": "slow",
+      "interval_ms": 1000.0,
+      "requests": 32,
+      "shown_before_next_key": 32,
+      "not_shown_before_next_key": 0,
+      "median_ms_shown_only": 30.346610499999997,
+      "p95_ms_shown_only": 59.9904906,
+      "min_ms_shown_only": 22.889742,
+      "max_ms_shown_only": 75.452369
+    },
+    {
+      "variant": "vysyn-worker1",
+      "scenario": "fast",
+      "interval_ms": 250.0,
+      "requests": 32,
+      "shown_before_next_key": 30,
+      "not_shown_before_next_key": 2,
+      "median_ms_shown_only": 30.346197,
+      "p95_ms_shown_only": 46.73028604999992,
+      "min_ms_shown_only": 23.514673,
+      "max_ms_shown_only": 67.474103
+    },
+    {
+      "variant": "vysyn-worker1",
+      "scenario": "alternating",
+      "interval_ms": 350.0,
+      "requests": 32,
+      "shown_before_next_key": 32,
+      "not_shown_before_next_key": 0,
+      "median_ms_shown_only": 24.163500499999998,
+      "p95_ms_shown_only": 29.71989,
+      "min_ms_shown_only": 22.076058,
+      "max_ms_shown_only": 29.830105
+    }
+  ]
+}

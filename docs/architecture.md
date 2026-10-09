@@ -16,11 +16,14 @@ The patch adds no unsafe code and leaves the other window-system backends alone.
 See [patch provenance and maintenance](https://github.com/chl84/Vysyn/blob/main/vendor/winit/VYSYN_PATCH.md).
 
 * `app`: winit lifecycle, physical-pixel input, on-demand redraw and GIF clock.
-* `render`: one GPU backend at a time, sRGB textures and a linear blending shader.
+* `render`: one GPU backend at a time, sRGB textures, a byte-bounded texture LRU
+  and a linear blending shader.
 * `decode`: bounded content detection, image/resvg/libheif decoding, orientation,
   conversion to sRGB and linear premultiplied alpha for filtering.
 * `loader`: bounded background jobs, request generations, adjacent preloading,
-  and an LRU of shared decoded images. A foreground request supersedes preloads.
+  and an LRU of shared decoded images. The latest foreground request can adopt
+  an active decode of the same path. Memory pressure defers background jobs until
+  reservations change; foreground work evicts only needed unpinned LRU buffers.
 * `navigation`: deterministic filename ordering and asynchronous directory scans.
 * `view`: fit, cursor-anchored zoom and panning, exclusively in physical pixels.
 * `limits`: validated environment configuration and shared allocation accounting.
@@ -28,8 +31,12 @@ See [patch provenance and maintenance](https://github.com/chl84/Vysyn/blob/main/
 Create the borderless window, initialize rendering, then submit the initial
 decode. Present the first image before scanning its directory or preloading.
 Background workers never touch a window or GPU. Static images use winit Wait;
-animated images use WaitUntil at the next frame deadline. Only the current frame
-occupies GPU image memory, and same-size texture uploads reuse the allocation.
+animated images use WaitUntil at the next frame deadline. Static images retain
+GPU textures within the existing total image-byte budget, avoiding upload on a
+GPU cache hit. Weak decoded-image identity keys neither pin CPU buffers nor match
+a new decode after file invalidation. Evicted same-size textures can be reused.
+Animations use a mutable texture outside the static LRU, counted within the same
+budget. Eviction precedes new allocation so retained image payloads remain bounded.
 
 Security takes precedence over showing an oversized image: reject unsafe decode
 sizes with a controlled error; downscale an otherwise safe decode if it exceeds
