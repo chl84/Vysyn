@@ -14,7 +14,7 @@ jobs:
         with:
           components: rustfmt, clippy
       - name: Native build tools and software graphics
-        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config libde265-dev libdav1d-dev libxkbcommon-dev libwayland-dev libvulkan1 mesa-vulkan-drivers xvfb
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build pkg-config libde265-dev libdav1d-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libvulkan1 mesa-vulkan-drivers xvfb
       - name: Build pinned native decoder
         run: bash scripts/build-native-linux.sh
       - name: Configure native library
