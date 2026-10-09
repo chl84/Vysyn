@@ -21,6 +21,7 @@ Wayland implementation uses a small patch to stable winit; see
 |---|---|
 | Mouse wheel | Zoom around the pointer |
 | Left button + drag | Pan |
+| Double-click left button | Fit and center, same as `0` |
 | Drop a file or directory | Open |
 | Right / left arrow | Next / previous image |
 | `+` / `-` | Zoom around the center |

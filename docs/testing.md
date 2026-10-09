@@ -7,7 +7,7 @@ libheif 1.23.4, AMD Radeon 610M, Hyprland/Wayland and Xwayland.
 
 * `cargo fmt --all --check`: passed.
 * `cargo clippy --locked --all-targets -- -D warnings`: passed.
-* `cargo test --locked --all-targets`: 47 tests passed (24 unit, 23 integration).
+* `cargo test --locked --all-targets`: 51 tests passed (28 unit, 23 integration).
 * `cargo build --locked --release --bins --examples`: passed.
 * `cargo audit`: no RustSec vulnerability findings in the locked dependencies.
   Advisory DB retrieval succeeded; the secondary registry version-info refresh
@@ -21,10 +21,27 @@ transparency, GIF composition/delays/repeats, safe SVG resolution, directory
 ordering/wrapping/deletion positions, cache eviction/recency, allocation lifetime,
 cursor-anchored zoom/panning, HiDPI physical-pixel sizing and one-to-one texel
 alignment, GPU backend order and thin-image texture budget rounding.
+Double-click tests cover nearby click pairs, time/distance limits, triple clicks,
+dragging away and back, and long-held buttons.
 The ten additional-format tests check P1–P7 pixels, 16-bit Farbfeld transparency,
 TGA origins/RLE/palettes/footer detection, DDS BC1/2/3 color/alpha and unsupported
 containers, HDR signatures/CRLF/RLE/tone mapping, corrupt files, reservation
 release, decoded float-buffer limits and GPU downscaling.
+
+## Double-click fit
+
+On 2026-10-09, actual left-button double-clicks in the Release build restored
+the same sampled window pixels as `0` after zoom and pan, on native Wayland
+with both Vulkan/RADV and GLES/radeonsi. Clicking the black margin also worked;
+small images returned to their original size without upscaling. Single clicks
+after short drags, slow/distant clicks and right-button double-clicks did not
+fit the image. Tests used only synthetic images and self-created, marked
+windows on an otherwise empty workspace. Logs remain under ignored
+`artifacts/double-click/`.
+
+The X11/Xwayland Release check also passed: whole-window RGB hashes after
+double-click and `0` matched, and ordinary pan/navigation/fullscreen still worked.
+The installed launcher passed the same native Wayland click checks with Vulkan.
 
 ## Additional image formats
 
@@ -77,7 +94,8 @@ not only the unit-tested preference list.
 `scripts/desktop-check.py` uses X11/XTest, targets a viewer process it launches,
 and captures pixels from that process's window. It verified actual nonblack image
 pixels, keyboard zoom, fit restoration, cursor-wheel zoom, dragging/panning,
-next/previous navigation, fullscreen geometry changes and Esc. The captured PNG
+single-click behavior after a drag, double-click matching `0`, next/previous
+navigation, fullscreen geometry changes and Esc. The captured PNG
 was visually inspected: a centered gradient, preserved aspect ratio and black
 letterboxing, with no controls. The script requires an X11/Xwayland desktop,
 `xprop`, libX11 and libXtst. It may briefly focus its own test window.
@@ -101,7 +119,7 @@ operation are not claimed as locally verified**. A Windows CI build is a
 compilation/non-graphical test, not a desktop functional test.
 
 Before a cross-platform release, verify on real Windows 10/11: bundled DLL loading,
-DX12/Vulkan/GLES fallback, no console, fullscreen, drag/drop and Open-with
+DX12/Vulkan/GLES fallback, no console, fullscreen, double-click fit, drag/drop and Open-with
 registration. Verify Wayland fractional scaling and moving between monitors with
 different scale factors on both platforms. Test a standalone Xorg desktop in
 addition to the tested Xwayland session. Inspect animation disposal/timing against

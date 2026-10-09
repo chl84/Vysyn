@@ -56,6 +56,7 @@ pub fn run(options: Options, limits: Limits) -> Result<()> {
         view: View::default(),
         cursor: Point::default(),
         dragging: false,
+        clicks: DoubleClick::default(),
         image: None,
         delays: Vec::new(),
         animation: Animation::default(),
@@ -94,6 +95,7 @@ struct App {
     view: View,
     cursor: Point,
     dragging: bool,
+    clicks: DoubleClick,
     image: Option<Arc<Decoded>>,
     delays: Vec<Duration>,
     animation: Animation,
@@ -129,11 +131,19 @@ impl App {
         event_loop.exit();
     }
     fn open(&mut self, path: PathBuf) {
+        self.clicks = DoubleClick::default();
         self.requested = Instant::now();
         self.generation = self.loader.as_ref().map_or(0, |l| l.open(path.clone()));
         self.current = Some(path);
         // Keep the displayed image until the replacement is ready.
         self.pending_scan = false;
+    }
+    fn click_position(&self, position: Point) -> Point {
+        let scale = self.window.as_ref().map_or(1.0, |w| w.scale_factor());
+        Point {
+            x: position.x / scale,
+            y: position.y / scale,
+        }
     }
     fn neighbors(&self) -> Vec<PathBuf> {
         let Some(current) = &self.current else {
@@ -257,6 +267,7 @@ impl ApplicationHandler<Event> for App {
                             None => false,
                         };
                         self.view.set_image(image.original);
+                        self.clicks = DoubleClick::default();
                         self.current = Some(path.clone());
                         let directory = path.parent().map(std::path::Path::to_path_buf);
                         if directory != self.directory {
@@ -328,6 +339,7 @@ impl ApplicationHandler<Event> for App {
                 self.redraw();
             }
             WindowEvent::ScaleFactorChanged { .. } => {
+                self.clicks = DoubleClick::default();
                 if let Some(window) = &self.window {
                     let size = window.inner_size();
                     self.view.resize([size.width, size.height]);
@@ -346,12 +358,16 @@ impl ApplicationHandler<Event> for App {
                     self.redraw();
                 }
             }
-            WindowEvent::Focused(false) | WindowEvent::CursorLeft { .. } => self.dragging = false,
+            WindowEvent::Focused(false) | WindowEvent::CursorLeft { .. } => {
+                self.dragging = false;
+                self.clicks = DoubleClick::default();
+            }
             WindowEvent::CursorMoved { position, .. } => {
                 let next = Point {
                     x: position.x,
                     y: position.y,
                 };
+                self.clicks.moved(self.click_position(next));
                 if self.dragging {
                     self.view.drag(Point {
                         x: next.x - self.cursor.x,
@@ -365,8 +381,22 @@ impl ApplicationHandler<Event> for App {
                 state,
                 button: MouseButton::Left,
                 ..
-            } => self.dragging = state == ElementState::Pressed,
+            } => {
+                self.dragging = state == ElementState::Pressed;
+                if self.dragging {
+                    if self
+                        .clicks
+                        .press(Instant::now(), self.click_position(self.cursor))
+                    {
+                        self.view.fit();
+                        self.redraw();
+                    }
+                } else {
+                    self.clicks.release(Instant::now());
+                }
+            }
             WindowEvent::MouseWheel { delta, .. } => {
+                self.clicks = DoubleClick::default();
                 let steps = match delta {
                     MouseScrollDelta::LineDelta(_, y) => f64::from(y),
                     MouseScrollDelta::PixelDelta(p) => p.y / 120.0,
@@ -380,6 +410,7 @@ impl ApplicationHandler<Event> for App {
                 self.open(path);
             }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
+                self.clicks = DoubleClick::default();
                 self.trace(&format!("key={:?}", event.logical_key));
                 match event.logical_key {
                     Key::Named(NamedKey::Escape) => event_loop.exit(),
@@ -469,5 +500,126 @@ impl ApplicationHandler<Event> for App {
         if let Some(loader) = &mut self.loader {
             loader.stop();
         }
+    }
+}
+
+const DOUBLE_CLICK_INTERVAL: Duration = Duration::from_millis(500);
+
+#[derive(Clone, Copy)]
+struct Click {
+    at: Instant,
+    position: Point,
+}
+
+impl Click {
+    fn near(self, position: Point) -> bool {
+        // Logical pixels keep the tolerance consistent across display scales.
+        (self.position.x - position.x).hypot(self.position.y - position.y) <= 5.0
+    }
+}
+
+#[derive(Default)]
+struct DoubleClick {
+    pressed: Option<Click>,
+    previous: Option<Click>,
+}
+
+impl DoubleClick {
+    fn press(&mut self, now: Instant, position: Point) -> bool {
+        let double = self.previous.take().is_some_and(|click| {
+            now.duration_since(click.at) <= DOUBLE_CLICK_INTERVAL && click.near(position)
+        });
+        // Consume both clicks so a third click cannot retrigger the same pair.
+        self.pressed = (!double).then_some(Click { at: now, position });
+        double
+    }
+
+    fn moved(&mut self, position: Point) {
+        if self.pressed.is_some_and(|click| !click.near(position)) {
+            self.pressed = None;
+        }
+    }
+
+    fn release(&mut self, now: Instant) {
+        // A drag or a long-held button cannot start a double-click.
+        self.previous = self
+            .pressed
+            .take()
+            .filter(|click| now.duration_since(click.at) <= DOUBLE_CLICK_INTERVAL);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn click(clicks: &mut DoubleClick, at: Instant, position: Point) -> bool {
+        let double = clicks.press(at, position);
+        clicks.release(at + Duration::from_millis(20));
+        double
+    }
+
+    #[test]
+    fn rapid_nearby_clicks_trigger_once_per_pair() {
+        let mut clicks = DoubleClick::default();
+        let at = Instant::now();
+        assert!(!click(&mut clicks, at, Point::default()));
+        assert!(click(
+            &mut clicks,
+            at + Duration::from_millis(180),
+            Point { x: 3.0, y: 4.0 }
+        ));
+        assert!(!click(
+            &mut clicks,
+            at + Duration::from_millis(300),
+            Point::default()
+        ));
+        assert!(click(
+            &mut clicks,
+            at + Duration::from_millis(420),
+            Point::default()
+        ));
+    }
+
+    #[test]
+    fn slow_or_distant_clicks_stay_single() {
+        let at = Instant::now();
+        for (delay, position) in [(501, Point::default()), (100, Point { x: 6.0, y: 0.0 })] {
+            let mut clicks = DoubleClick::default();
+            assert!(!click(&mut clicks, at, Point::default()));
+            assert!(!click(
+                &mut clicks,
+                at + Duration::from_millis(delay),
+                position
+            ));
+        }
+    }
+
+    #[test]
+    fn dragging_away_and_back_does_not_start_a_double_click() {
+        let at = Instant::now();
+        let mut clicks = DoubleClick::default();
+        assert!(!clicks.press(at, Point::default()));
+        clicks.moved(Point { x: 30.0, y: 0.0 });
+        clicks.moved(Point::default());
+        clicks.release(at + Duration::from_millis(100));
+        assert!(!click(
+            &mut clicks,
+            at + Duration::from_millis(200),
+            Point::default()
+        ));
+    }
+
+    #[test]
+    fn long_press_is_not_a_click() {
+        let at = Instant::now();
+        let mut clicks = DoubleClick::default();
+        assert!(!clicks.press(at, Point::default()));
+        clicks.release(at + Duration::from_millis(600));
+        assert!(!click(
+            &mut clicks,
+            at + Duration::from_millis(700),
+            Point::default()
+        ));
     }
 }

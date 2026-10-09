@@ -57,7 +57,14 @@ x.XGetImage.argtypes = [display_type, window_type, c.c_int, c.c_int, c.c_uint, c
 x.XGetImage.restype = c.POINTER(XImage)
 x.XDestroyImage.argtypes = [c.POINTER(XImage)]
 
+def guard():
+    assert proc.poll() is None, 'Test viewer exited'
+    if env.get('HYPRLAND_INSTANCE_SIGNATURE'):
+        active = json.loads(subprocess.check_output(['hyprctl','-j','activewindow'],text=True))
+        assert active.get('pid')==proc.pid, 'Test viewer lost compositor focus; input check stopped'
+
 def event(kind, detail, px=0, py=0, state=0):
+    guard()
     if kind in (4,5,6):
         x.XWarpPointer(display,0,window,0,0,0,0,px,py)
         if kind in (4,5):
@@ -72,6 +79,7 @@ def event(kind, detail, px=0, py=0, state=0):
     x.XFlush(display)
 
 def key(name, shift=False):
+    guard()
     focused,revert = window_type(),c.c_int()
     x.XGetInputFocus(display,c.byref(focused),c.byref(revert))
     if focused.value!=window:
@@ -90,6 +98,7 @@ def key(name, shift=False):
     x.XFlush(display)
 
 def screenshot(name=None):
+    guard()
     r, a, b, w, h, border, depth = window_type(), c.c_int(), c.c_int(), c.c_uint(), c.c_uint(), c.c_uint(), c.c_uint()
     assert x.XGetGeometry(display, window, c.byref(r), c.byref(a), c.byref(b), c.byref(w), c.byref(h), c.byref(border), c.byref(depth))
     ptr = x.XGetImage(display, window, 0, 0, w.value, h.value, c.c_ulong(-1), 2)
@@ -115,6 +124,7 @@ def screenshot(name=None):
 log_path = out/'desktop-check.log'
 env = dict(os.environ)
 env.pop('WAYLAND_DISPLAY',None)
+env['VYSYN_REPRO_SESSION'] = 'desktop-check'
 log = log_path.open('w')
 proc = subprocess.Popen([str(root/'target/release/vysyn'),'--trace','--smoke-ms','15000',str(root/'artifacts/bench-images/gradient.png')],env=env,stdout=log,stderr=log)
 display = x.XOpenDisplay(None)
@@ -131,6 +141,13 @@ try:
                 window = int(ident,16); break
         time.sleep(0.05)
     assert window, 'Viewer window not found'
+    if env.get('HYPRLAND_INSTANCE_SIGNATURE'):
+        clients = json.loads(subprocess.check_output(['hyprctl','-j','clients'],text=True))
+        client = next(client for client in clients if client['pid']==proc.pid)
+        assert b'VYSYN_REPRO_SESSION=desktop-check' in Path(f'/proc/{proc.pid}/environ').read_bytes().split(b'\0')
+        answer = subprocess.check_output(['hyprctl','dispatch','hl.dsp.focus({window='+json.dumps('address:'+client['address'])+'})'],text=True).strip()
+        assert answer=='ok', answer
+        time.sleep(0.05)
     x.XSetInputFocus(display,window,2,0)
     x.XFlush(display)
     deadline = time.monotonic()+5
@@ -153,6 +170,14 @@ try:
     assert screenshot()[0]!=zoomed, 'Dragging did not change rendering'
     key('0'); time.sleep(0.15)
     assert screenshot()[0]==initial, 'Fit did not clear panning'
+    key('KP_Add'); time.sleep(0.15)
+    event(4,1,w//2,h//2); event(6,0,w//2+70,h//2+30,state=256); event(5,1,w//2+70,h//2+30); time.sleep(0.15)
+    changed = screenshot()[0]
+    assert changed!=initial, 'Zoom and pan did not change rendering'
+    event(4,1,w//2,h//2); event(5,1,w//2,h//2); time.sleep(0.1)
+    assert screenshot()[0]==changed, 'Single click after dragging unexpectedly fitted the image'
+    event(4,1,w//2,h//2); event(5,1,w//2,h//2); time.sleep(0.15)
+    assert screenshot()[0]==initial, 'Double-click did not restore the same pixels as 0'
     time.sleep(0.5)
     key('Right'); time.sleep(0.3)
     assert screenshot()[0]!=initial, 'Next image did not change rendering'
@@ -164,7 +189,7 @@ try:
     key('F11'); time.sleep(0.3)
     key('Escape'); proc.wait(timeout=3)
     assert proc.returncode==0, log_path.read_text()
-    report = {'viewport':[w,h],'center_rgb':center,'checks':['PNG pixels visible','keyboard zoom','fit','wheel zoom','pan','navigation right/left','fullscreen','Esc'],'log':str(log_path)}
+    report = {'viewport':[w,h],'center_rgb':center,'checks':['PNG pixels visible','keyboard zoom','fit','wheel zoom','pan','single click after drag','double-click matches 0','navigation right/left','fullscreen','Esc'],'log':str(log_path)}
     (out/'desktop-check.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report))
 finally:

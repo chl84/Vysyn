@@ -28,7 +28,7 @@ fn start() -> Result<()> {
                 }
                 Some("--help" | "-h") => {
                     println!(
-                        "Usage: vysyn [--trace] [--smoke-ms MILLISECONDS] [--] [IMAGE|DIRECTORY]\n\nWheel: zoom; left drag: pan; arrows: navigate; +/-: zoom; 0: fit; F11: fullscreen; Esc: close."
+                        "Usage: vysyn [--trace] [--smoke-ms MILLISECONDS] [--] [IMAGE|DIRECTORY]\n\nWheel: zoom; left drag: pan; double-click / 0: fit; arrows: navigate; +/-: zoom; F11: fullscreen; Esc: close."
                     );
                     return Ok(());
                 }
