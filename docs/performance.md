@@ -227,6 +227,36 @@ decodes from about 10–13 ms to sub-millisecond times. Ordinary sRGB NCLX image
 also skip a redundant CMS conversion. No Rayon, tiling or aggressive compiler
 optimizations were added.
 
+## PSD composite decoding
+
+Measured on 2026-10-10 with the same Linux/Ryzen environment and Release settings.
+The 1920x1080 samples are generated RGB gradients with RAW planar composites and
+no ICC profile. Eleven sequential decodes per file discard the first as warmup;
+the remaining ten include reading, parsing and 16-to-8-bit conversion, and exclude
+GPU upload/presentation.
+
+| PSD sample | Median ms | P95 ms |
+|---|---:|---:|
+| RGB 8-bit, 1920x1080 | 7.854 | 10.084 |
+| RGB 16-bit, 1920x1080 | 16.584 | 20.701 |
+
+Small profiled fixtures demonstrate fixed CMS setup costs: the 5x5 RGB 16-bit
+fixture took 9.303 ms, and 4x4 grayscale 16-bit took 9.472 ms. Source precision is
+retained through ICC conversion; profile transforms are created per decode.
+These samples do not represent large professional layered documents or rank PSD
+against unrelated JPEG/PNG content. Skipping layer pixels avoids loading/rendering
+them; metadata, the composite and color conversion still cost time.
+
+A separate bundled benchmark process decoding both large samples eleven times
+each reached **39.98 MiB peak RSS**, measured with Linux `getrusage`. It includes
+the previous iteration's retained image and excludes GUI/GPU memory. The final
+RGBA8 payload is 7.91 MiB for either depth. Application reservations and process
+RSS measure different things; neither is a hard ceiling for the whole desktop.
+
+See [all nine warm decode results](benchmarks/psd-decode.tsv),
+[benchmark process resources](benchmarks/psd-resources.json) and
+[actual Wayland pixel/navigation checks](benchmarks/psd-presentation.json).
+
 ## Reproduce
 
 ```sh

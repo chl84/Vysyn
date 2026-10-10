@@ -37,6 +37,22 @@
   be multiples of four, as required by image's decoder. Cubemaps, arrays, volumes,
   uncompressed DDS, BC4–BC7 and premultiplied/custom DX10 alpha are rejected.
   Unknown/straight alpha is preserved; explicit opaque DX10 alpha is respected.
+* PSD v1 displays only the saved merged image: RGB/grayscale, 8/16-bit, with
+  RAW, PackBits RLE, ZIP or ZIP prediction. There is no layer rendering, font
+  loading or smart-object evaluation. Photoshop's **Maximize PSD and PSB File
+  Compatibility** must be enabled when saving; a missing or explicitly invalid
+  composite produces an error. PSB, bitmap/indexed/duotone/multichannel, CMYK/Lab,
+  32-bit floating-point samples and Photoshop EXIF orientation are unsupported.
+  Transparency uses negative layer counts, merged-transparency tags or alpha ID
+  zero; unmarked extra channels are treated as saved masks and ignored.
+  RGB/grayscale ICC conversion happens before 16-to-8-bit quantization, with the
+  same sRGB fallback diagnostics as other formats. Photoshop's white composite
+  matte is removed before conversion/premultiplication. Unusual writers that
+  store straight alpha while declaring Photoshop matte semantics may differ.
+  Source files are capped at 2 GiB; skipped layer data does not consume the
+  encoded-input allowance. The entire encoded composite and inspected metadata
+  still share that allowance. All composite channels (including ignored masks)
+  have a combined decoded-byte limit, bounding ZIP expansion and decoding work.
 * SVG support is deliberately bounded: UTF-8 vector shapes, gradients and text;
   no DTDs, `use` expansion, raster image hrefs (including data URIs), filters,
   masks or patterns. External image resolvers return None, so neither files nor
@@ -99,3 +115,5 @@ Primary references:
 * [image TGA decoder](https://docs.rs/image/0.25.10/image/codecs/tga/struct.TgaDecoder.html)
 * [image HDR decoder](https://docs.rs/image/0.25.10/image/codecs/hdr/struct.HdrDecoder.html)
 * [DDS block compression and BC1 transparency](https://learn.microsoft.com/en-us/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression)
+* [Adobe Photoshop file format specification](https://www.adobe.com/devnet-apps/photoshop/fileformatashtml/)
+* [psd-tools compression and prediction implementation](https://github.com/psd-tools/psd-tools/blob/b58704c1c9c9b2459f961560b1e368dfb102b513/src/psd_tools/compression/__init__.py)

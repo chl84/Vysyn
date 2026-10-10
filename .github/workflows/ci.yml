@@ -55,8 +55,17 @@ jobs:
             done
           done
       - run: python3 scripts/bundle-linux.py
+      - name: PSD composites on software Vulkan and GLES
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          for psd_backend in vulkan gles; do
+            for psd_image in artifacts/bench-images/gradient-{8,16}.psd tests/fixtures/psd/transparentbg-gimp.psd; do
+              VYSYN_BACKEND="$psd_backend" xvfb-run -a target/release/vysyn --trace --smoke-ms 5000 "$psd_image"
+            done
+          done
       - name: Test bundled codec loading
-        run: artifacts/vysyn-linux-x64/vysyn-bench tests/fixtures/sample.avif tests/fixtures/rotated.heic artifacts/bench-images/gradient.{pbm,pgm,ppm,pam,tga,ff,hdr} artifacts/bench-images/red.dds
+        run: artifacts/vysyn-linux-x64/vysyn-bench tests/fixtures/sample.avif tests/fixtures/rotated.heic artifacts/bench-images/gradient.{pbm,pgm,ppm,pam,tga,ff,hdr} artifacts/bench-images/red.dds artifacts/bench-images/gradient-{8,16}.psd
       - uses: actions/upload-artifact@v7
         with:
           name: vysyn-linux-x64

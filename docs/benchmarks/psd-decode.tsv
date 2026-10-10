@@ -1,0 +1,10 @@
+file	format	width	height	frames	decode_median_ms	decode_p95_ms	cache_lookup_us	image_bytes
+gradient-8.psd	Psd	1920	1080	1	7.854	10.084	0.022	8294400
+gradient-16.psd	Psd	1920	1080	1	16.584	20.701	0.025	8294400
+16bit5x5.psd	Psd	5	5	1	9.303	9.457	0.022	100
+1layer.psd	Psd	101	55	1	0.020	0.022	0.021	22220
+4x4_16bit_grayscale.psd	Psd	4	4	1	9.472	9.545	0.022	64
+4x4_8bit_grayscale.psd	Psd	4	4	1	0.555	0.557	0.022	64
+4x4_8bit_rgba.psd	Psd	4	4	1	0.557	0.569	0.022	64
+semi-transparent-layers.psd	Psd	100	100	1	0.610	0.629	0.022	40000
+transparentbg-gimp.psd	Psd	40	40	1	0.044	0.045	0.022	6400

@@ -6,5 +6,6 @@ pub mod decode;
 pub mod limits;
 pub mod loader;
 pub mod navigation;
+mod psd;
 pub mod render;
 pub mod view;

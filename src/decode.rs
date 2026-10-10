@@ -17,9 +17,14 @@ pub enum Format {
     Raster(ImageFormat),
     Heif,
     Svg,
+    Psd,
 }
 
 pub fn detect(bytes: &[u8]) -> Result<Format> {
+    if bytes.starts_with(b"8BPS") {
+        crate::psd::validate_header(bytes)?;
+        return Ok(Format::Psd);
+    }
     if bytes.len() >= 16 && &bytes[4..8] == b"ftyp" {
         let size = u32::from_be_bytes(bytes[..4].try_into()?) as usize;
         ensure!(size >= 16, "invalid image container header");
@@ -202,6 +207,18 @@ pub fn decode(
     let start = Instant::now();
     let mut file = File::open(path).with_context(|| format!("cannot open {}", path.display()))?;
     let size = file.metadata()?.len();
+    let mut signature = [0; 4];
+    if size >= 4 {
+        file.read_exact(&mut signature)?;
+        file.seek(SeekFrom::Start(0))?;
+    }
+    if &signature == b"8BPS" {
+        let (rgba, memory, warnings) = crate::psd::decode(file, size, limits, budget, cancelled)?;
+        ensure!(!cancelled(), "request superseded");
+        let mut decoded = single(rgba, target, memory, warnings);
+        decoded.elapsed = start.elapsed();
+        return Ok(decoded);
+    }
     ensure!(
         size > 0 && size <= limits.file_bytes,
         "file is empty or exceeds the input size limit"
@@ -223,6 +240,7 @@ pub fn decode(
         Format::Raster(f) => decode_raster(&bytes, f, limits, budget, target)?,
         Format::Heif => decode_heif(&bytes, limits, budget, target)?,
         Format::Svg => decode_svg(&bytes, limits, budget, target)?,
+        Format::Psd => bail!("file changed while reading; try again"),
     };
     ensure!(!cancelled(), "request superseded");
     decoded.elapsed = start.elapsed();

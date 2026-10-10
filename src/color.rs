@@ -43,6 +43,37 @@ pub fn convert_profile(pixels: &mut [u8], source: &ColorProfile) -> Result<()> {
     Ok(())
 }
 
+/// Keep PSD's 16-bit source precision through ICC conversion, before reducing
+/// it to the viewer's 8-bit sRGB surface. Scratch is bounded to one small chunk.
+pub(crate) fn convert_profile16(pixels: &mut [u16], source: &ColorProfile) -> Result<()> {
+    let gray = source.color_space == DataColorSpace::Gray;
+    let layout = if gray { Layout::Gray } else { Layout::Rgba };
+    let transform = source.create_transform_16bit(
+        layout,
+        &ColorProfile::new_srgb(),
+        Layout::Rgba,
+        Default::default(),
+    )?;
+    let mut input = vec![0; 8192];
+    for chunk in pixels.chunks_mut(8192) {
+        if gray {
+            let count = chunk.len() / 4;
+            for (i, p) in chunk.as_chunks::<4>().0.iter().enumerate() {
+                input[i] = p[0];
+            }
+            let alpha: Vec<_> = chunk.as_chunks::<4>().0.iter().map(|p| p[3]).collect();
+            transform.transform(&input[..count], chunk)?;
+            for (p, alpha) in chunk.as_chunks_mut::<4>().0.iter_mut().zip(alpha) {
+                p[3] = alpha;
+            }
+        } else {
+            input[..chunk.len()].copy_from_slice(chunk);
+            transform.transform(&input[..chunk.len()], chunk)?;
+        }
+    }
+    Ok(())
+}
+
 pub fn srgb_to_linear(v: u8) -> f32 {
     static LUT: OnceLock<[f32; 256]> = OnceLock::new();
     LUT.get_or_init(|| {

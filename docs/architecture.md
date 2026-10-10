@@ -16,6 +16,15 @@ BC1's missing alpha selector without duplicating color decoding. HDR uses a
 bounded, normalized header plus the original pixel stream with the strict decoder,
 then maps float linear RGB to SDR before quantizing.
 
+PSD has a small, safe Rust composite reader in `psd`, called by the same loader.
+It validates section boundaries and seeks past unused layer pixels, reading only
+bounded metadata and the saved planar composite. It supports RGB/grayscale 8/16-bit
+RAW, PackBits RLE, ZIP and ZIP prediction; `flate2` was already a transitive Rust
+dependency, and no native library was added. Explicit Photoshop transparency
+markers distinguish opacity from saved masks. White matte removal precedes ICC
+conversion, 16-bit samples retain precision through CMS, and the resulting RGBA8
+uses the existing linear premultiplication, GPU limits, navigation and caches.
+
 Stable winit 0.30.13 does not implement Wayland file drops. The vendored crate
 adds a receiving data device to its existing connection and calloop event loop,
 then emits the same `DroppedFile` event used on X11/Windows. URI reads are

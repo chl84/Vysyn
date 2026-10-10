@@ -1,13 +1,13 @@
 # Validation
 
-Validated locally on 2026-10-08/09 (Europe/Oslo), Linux x86_64, Rust 1.98.0,
+Validated locally on 2026-10-08–10 (Europe/Oslo), Linux x86_64, Rust 1.98.0,
 libheif 1.23.4, AMD Radeon 610M, Hyprland/Wayland and Xwayland.
 
 ## Automated checks
 
 * `cargo fmt --all --check`: passed.
 * `cargo clippy --locked --all-targets -- -D warnings`: passed.
-* `cargo test --locked --all-targets`: 51 tests passed (28 unit, 23 integration).
+* `cargo test --locked --all-targets`: 62 tests passed (28 unit, 34 integration).
 * `cargo build --locked --release --bins --examples`: passed.
 * `cargo audit`: no RustSec vulnerability findings in the locked dependencies.
   Advisory DB retrieval succeeded; the secondary registry version-info refresh
@@ -27,6 +27,44 @@ The ten additional-format tests check P1–P7 pixels, 16-bit Farbfeld transparen
 TGA origins/RLE/palettes/footer detection, DDS BC1/2/3 color/alpha and unsupported
 containers, HDR signatures/CRLF/RLE/tone mapping, corrupt files, reservation
 release, decoded float-buffer limits and GPU downscaling.
+
+## PSD composites
+
+On 2026-10-10, eleven new PSD tests passed. They cover RGB/grayscale 8/16-bit
+RAW, PackBits RLE (literal/run/no-op packets), ZIP and ZIP prediction, planar
+ordering and per-row predictor resets, alpha IDs/negative layer counts/additional
+transparency tags, saved masks, white matte removal, ICC conversion before
+quantization and preserved alpha. Errors cover unsupported modes/PSB, missing
+composites, section boundaries, every truncation of the four compression samples,
+invalid RLE, ZIP checksum/trailing data/short output/excess expansion, oversized
+ICC profiles, allocation limits, cancellation and released reservations.
+
+A file with 200 MiB of unused layer data decoded with a 128-byte inspected-input
+allowance and 16 MiB working budget; this verifies seeking over unused sections.
+3,072 deterministic mutations of pixel and metadata samples ran under small
+limits without panic or leaked reservations. This is bounded mutation testing,
+not a sustained coverage-guided fuzzing campaign.
+
+All pixels of seven unmodified, pinned psd-tools fixtures matched independent
+ImageMagick/LCMS2 composite references within one code value. The files include
+RGB/grayscale ICC, 8/16-bit samples, saved masks, layer adjustments and GIMP
+transparency. [Fixture provenance and reproduction](../tests/fixtures/psd/README.md)
+are checked in with the license and PNG references. They are not Photoshop exports.
+
+The actual Release viewer passed 14 generated PSD variants on native Wayland
+with Vulkan/RADV and the same 14 with GLES/radeonsi. Captured window pixels matched
+known colors within two code values, including linear transparency and Display P3/
+linear-gray ICC. Arrow navigation, previous/wrapping and GPU cache reuse passed.
+The installed launcher passed all 14 with Vulkan. Tests captured and controlled
+only self-created, marked windows on an otherwise empty workspace. One initial
+GLES capture retained the previous pixels despite a completed presentation trace;
+the complete repeated run passed. That intermittent capture/presentation event
+was not diagnosed as a PSD decoder error. Logs remain in ignored `artifacts/psd/`.
+
+GIO recognizes PSD as `image/vnd.adobe.photoshop`, and the installed desktop MIME
+cache offers Vysyn for it. Windows registration includes `.psd`. PSD adds a direct
+use of the already locked pure Rust `flate2`; no package version or native codec
+library changed. Windows desktop opening still requires manual validation.
 
 ## Double-click fit
 

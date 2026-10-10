@@ -30,8 +30,11 @@ Wayland implementation uses a small patch to stable winit; see
 | `Esc` | Close |
 
 JPEG, PNG, WebP, GIF (including animation), BMP, TIFF, HEIC/HEIF, AVIF, SVG,
-ICO, PNM (PBM/PGM/PPM/PAM), TGA, Farbfeld, DDS (DXT1/3/5 and BC1/2/3), and
-Radiance HDR/RGBE are supported. HDR uses fixed-exposure Reinhard tone mapping
+ICO, PNM (PBM/PGM/PPM/PAM), TGA, Farbfeld, DDS (DXT1/3/5 and BC1/2/3),
+Radiance HDR/RGBE and PSD are supported. PSD displays the saved composite in
+RGB/grayscale, 8/16-bit, with ICC conversion and transparency; layers are skipped.
+Save with Photoshop's **Maximize PSD and PSB File Compatibility** enabled.
+PSB, CMYK/Lab and 32-bit PSD are unsupported. HDR uses fixed-exposure Reinhard tone mapping
 to the 8-bit SDR output. EXIF orientation and HEIF rotation are applied automatically.
 RGB/grayscale ICC profiles convert to sRGB; transparency is filtered and blended
 against black in linear light. Rendering and zoom coordinates use physical
@@ -126,17 +129,24 @@ positive; `VYSYN_CACHE_MIB=0` disables decoded CPU caching and preloading.
 | `VYSYN_RAM_MIB` | 512 | Shared image and decoding-work budget |
 | `VYSYN_CACHE_MIB` | 192 | Decoded LRU cache budget |
 | `VYSYN_GPU_MIB` | 128 | Total GPU image texture/cache budget |
-| `VYSYN_FILE_MIB` | 64 | Maximum input file size |
+| `VYSYN_FILE_MIB` | 64 | Maximum encoded input; PSD counts inspected data |
 | `VYSYN_WORKERS` | 2 | Decoding workers, allowed range 1–4 |
 
 Source dimensions and decoder buffers are checked before pixel allocation.
-Temporary work is reserved conservatively (six RGBA buffers plus 8 MiB), so
+Temporary work is reserved conservatively (normally six RGBA buffers plus 8 MiB), so
 the practical source limit may be lower than `VYSYN_MAX_PIXELS`. Active images,
 preloads and cached images share the same budget. Oversized safe decodes are
 downscaled to the adapter's texture limits and the GPU budget. Unsafe source
 decodes are rejected. GIFs also have a 512-frame limit. SVG sources are capped at
 1 MiB, 10,000 XML nodes and 16 KiB of shaped text. Directory lists are capped at 100,000 entries and
 16 MiB of path storage.
+
+PSD uses bounded streaming: unused layer/resource data is sought over, with a
+2 GiB total-file cap. Inspected headers/resources and the entire encoded composite
+share `VYSYN_FILE_MIB`; native sample storage and all composite channels must fit
+`VYSYN_DECODED_MIB`. Its working reservation is native RGBA (8/16-bit), one
+RGBA8 output buffer and 8 MiB scratch. A large layered file can therefore open
+when its saved composite fits the existing limits.
 
 Concurrent decoding adapts to the available RAM reservations: background jobs
 wait for memory instead of clearing the decoded cache. Selecting an image already

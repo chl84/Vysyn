@@ -59,6 +59,7 @@ pub fn supported_extension(path: &Path) -> bool {
                 | "dds"
                 | "hdr"
                 | "rgbe"
+                | "psd"
         )
     })
 }

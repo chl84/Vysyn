@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-10",
+  "process": "bundled Release vysyn-bench",
+  "fixtures": [
+    "gradient-8.psd",
+    "gradient-16.psd"
+  ],
+  "width": 1920,
+  "height": 1080,
+  "decodes_per_fixture": 11,
+  "elapsed_seconds": 0.3462242499999775,
+  "max_rss_kib": 40936,
+  "user_cpu_seconds": 0.26362199999999997,
+  "system_cpu_seconds": 0.075607,
+  "method": "Linux getrusage(RUSAGE_CHILDREN) after one benchmark process. Includes eleven sequential decodes per fixture and the previous iteration image; excludes GUI and GPU."
+}

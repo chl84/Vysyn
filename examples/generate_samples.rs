@@ -38,6 +38,26 @@ fn main() -> Result<()> {
         ImageFormat::Farbfeld,
     )?;
     let rgb = image.as_rgb8().unwrap();
+    // Minimal PSD v1 composites. No layer encoder or new runtime dependency.
+    for depth in [8_u16, 16] {
+        let mut file = BufWriter::new(File::create(dir.join(format!("gradient-{depth}.psd")))?);
+        file.write_all(b"8BPS\0\x01\0\0\0\0\0\0\0\x03")?;
+        file.write_all(&1080_u32.to_be_bytes())?;
+        file.write_all(&1920_u32.to_be_bytes())?;
+        file.write_all(&depth.to_be_bytes())?;
+        file.write_all(&3_u16.to_be_bytes())?;
+        file.write_all(&[0; 12])?; // Empty color data, resources and layers.
+        file.write_all(&0_u16.to_be_bytes())?; // Uncompressed planar samples.
+        for channel in 0..3 {
+            for pixel in rgb.pixels() {
+                if depth == 8 {
+                    file.write_all(&[pixel[channel]])?;
+                } else {
+                    file.write_all(&(u16::from(pixel[channel]) * 257).to_be_bytes())?;
+                }
+            }
+        }
+    }
     let gray = image.to_luma8();
     for (extension, signature, data) in [("ppm", "P6", rgb.as_raw()), ("pgm", "P5", gray.as_raw())]
     {

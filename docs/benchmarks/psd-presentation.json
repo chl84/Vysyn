@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-10",
+  "window_system": "native Wayland / Hyprland",
+  "gpu": "AMD Radeon 610M",
+  "method": "Only marked, self-created fullscreen windows; 32x24 captured window RGB samples; two-code-value tolerance. Navigation wrap/previous and GPU-cache reuse verified. One initial GLES capture retained previous pixels; complete repeat passed.",
+  "reports": [
+    {
+      "label": "psd-vysyn-after",
+      "backend": "Vulkan",
+      "fixtures_passed": 14,
+      "navigation_wrap_and_previous": true,
+      "gpu_cache_reused": true
+    },
+    {
+      "label": "psd-vysyn-gles",
+      "backend": "GLES",
+      "fixtures_passed": 14,
+      "navigation_wrap_and_previous": true,
+      "gpu_cache_reused": true
+    },
+    {
+      "label": "psd-installed",
+      "backend": "Vulkan",
+      "fixtures_passed": 14,
+      "navigation_wrap_and_previous": true,
+      "gpu_cache_reused": true
+    }
+  ],
+  "fixtures": [
+    {"name": "01-rgb-8-compression-0.psd","expected_rgb": [255,0,0],"observed_rgb": {"psd-vysyn-after": [255.0,0.0,0.0],"psd-vysyn-gles": [255.0,0.0,0.0],"psd-installed": [255.0,0.0,0.0]}},
+    {"name": "02-rgb-8-compression-1.psd","expected_rgb": [0,255,0],"observed_rgb": {"psd-vysyn-after": [0.0,255.0,0.0],"psd-vysyn-gles": [0.0,255.0,0.0],"psd-installed": [0.0,255.0,0.0]}},
+    {"name": "03-rgb-8-compression-2.psd","expected_rgb": [0,0,255],"observed_rgb": {"psd-vysyn-after": [0.0,0.0,255.0],"psd-vysyn-gles": [0.0,0.0,255.0],"psd-installed": [0.0,0.0,255.0]}},
+    {"name": "04-rgb-8-compression-3.psd","expected_rgb": [0,255,255],"observed_rgb": {"psd-vysyn-after": [0.0,255.0,255.0],"psd-vysyn-gles": [0.0,255.0,255.0],"psd-installed": [0.0,255.0,255.0]}},
+    {"name": "05-rgb-16-compression-0.psd","expected_rgb": [255,255,0],"observed_rgb": {"psd-vysyn-after": [255.0,255.0,0.0],"psd-vysyn-gles": [255.0,255.0,0.0],"psd-installed": [255.0,255.0,0.0]}},
+    {"name": "06-rgb-16-compression-1.psd","expected_rgb": [255,0,255],"observed_rgb": {"psd-vysyn-after": [255.0,0.0,255.0],"psd-vysyn-gles": [255.0,0.0,255.0],"psd-installed": [255.0,0.0,255.0]}},
+    {"name": "07-rgb-16-compression-2.psd","expected_rgb": [80,140,220],"observed_rgb": {"psd-vysyn-after": [80.0,140.0,220.0],"psd-vysyn-gles": [80.0,140.0,220.0],"psd-installed": [80.0,140.0,220.0]}},
+    {"name": "08-rgb-16-compression-3.psd","expected_rgb": [230,100,40],"observed_rgb": {"psd-vysyn-after": [230.0,100.0,40.0],"psd-vysyn-gles": [230.0,100.0,40.0],"psd-installed": [230.0,100.0,40.0]}},
+    {"name": "09-gray8.psd","expected_rgb": [50,50,50],"observed_rgb": {"psd-vysyn-after": [50.0,50.0,50.0],"psd-vysyn-gles": [50.0,50.0,50.0],"psd-installed": [50.0,50.0,50.0]}},
+    {"name": "10-gray16-renamed","expected_rgb": [200,200,200],"observed_rgb": {"psd-vysyn-after": [200.0,200.0,200.0],"psd-vysyn-gles": [200.0,200.0,200.0],"psd-installed": [200.0,200.0,200.0]}},
+    {"name": "11-alpha16.psd","expected_rgb": [188,188,0],"observed_rgb": {"psd-vysyn-after": [188.0,188.0,0.0],"psd-vysyn-gles": [188.0,188.0,0.0],"psd-installed": [188.0,188.0,0.0]}},
+    {"name": "12-alpha-gray8.psd","expected_rgb": [93,93,93],"observed_rgb": {"psd-vysyn-after": [93.0,93.0,93.0],"psd-vysyn-gles": [93.0,93.0,93.0],"psd-installed": [93.0,93.0,93.0]}},
+    {"name": "13-display-p3.psd","expected_rgb": [181,96,75],"observed_rgb": {"psd-vysyn-after": [181.0,96.0,75.0],"psd-vysyn-gles": [181.0,96.0,75.0],"psd-installed": [181.0,96.0,75.0]}},
+    {"name": "14-linear-gray16.psd","expected_rgb": [137,137,137],"observed_rgb": {"psd-vysyn-after": [138.0,138.0,138.0],"psd-vysyn-gles": [138.0,138.0,138.0],"psd-installed": [138.0,138.0,138.0]}}
+  ]
+}
